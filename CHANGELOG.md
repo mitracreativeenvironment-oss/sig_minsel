@@ -11,6 +11,14 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 
 ---
 
+## [0.7.0] - 2026-11-10
+
+### Keterangan Perubahan
+- Penyederhanaan: Menghapus landing page dan menjadikan peta interaktif MapLibre sebagai antarmuka utama
+- feat(geoportal): hapus landing page dan fokus langsung ke peta interaktif MapLibre (23f1b6d)
+
+---
+
 ## [0.6.0] - 2026-11-10
 
 ### Keterangan Perubahan
@@ -149,6 +157,7 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 - Workflow otomasi CI/CD & GitHub Releases (`.github/workflows/release.yml`, `.github/workflows/ci.yml`).
 - Skema dasar basis data spasial (tabel batas administrasi kecamatan/desa dan objek tematik).
 - Konfigurasi `.gitignore` menyeluruh untuk CI4, Vue 3, GIS, dan cPanel.
+
 
 
 
