@@ -2,7 +2,7 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import gsap from 'gsap';
 import MinselRealScenery from '../components/MinselRealScenery.vue';
-import MinselTerrainCanvas from '../components/MinselTerrainCanvas.vue';
+import MinselLogo3DCanvas from '../components/MinselLogo3DCanvas.vue';
 import {
   Layers,
   ShieldCheck,
@@ -10,8 +10,7 @@ import {
   Database,
   ChevronRight,
   ChevronLeft,
-  Camera,
-  Globe2
+  Camera
 } from 'lucide-vue-next';
 
 const emit = defineEmits<{
@@ -211,13 +210,13 @@ onBeforeUnmount(() => {
     @touchstart="onTouchStart"
     @touchmove="onTouchMove"
   >
-    <!-- Background Latar: Foto Nyata Lanskap Minsel (Default) atau Peta 3D Digital -->
+    <!-- Background Latar: Foto Nyata Lanskap Minsel (Default) atau 3D Kinetic Logo Assembler -->
     <MinselRealScenery
       v-if="bgMode === 'real'"
       :scroll-progress="currentProgress"
       :active-section="activeSection"
     />
-    <MinselTerrainCanvas
+    <MinselLogo3DCanvas
       v-else
       :scroll-progress="currentProgress"
       :active-section="activeSection"
@@ -278,7 +277,7 @@ onBeforeUnmount(() => {
       </nav>
 
       <div class="header-actions">
-        <!-- Switcher Mode Latar: Foto Nyata / 3D Topografi -->
+        <!-- Switcher Mode Latar: Foto Nyata / 3D Logo Perakitan -->
         <div class="bg-mode-switcher">
           <button
             class="mode-switch-btn"
@@ -293,10 +292,10 @@ onBeforeUnmount(() => {
             class="mode-switch-btn"
             :class="{ active: bgMode === '3d' }"
             @click="bgMode = '3d'"
-            title="Gunakan 3D Topografi PBR Berbasis Foto Nyata Lanskap Minsel"
+            title="Saksikan Perakitan Lambang 3D Minahasa Selatan secara Sinematik"
           >
-            <Globe2 :size="13" />
-            <span>3D Topografi Real</span>
+            <ShieldCheck :size="13" />
+            <span>3D Logo Perakitan</span>
           </button>
         </div>
 
