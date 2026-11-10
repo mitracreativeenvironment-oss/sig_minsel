@@ -11,6 +11,14 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 
 ---
 
+## [0.5.4] - 2026-11-10
+
+### Keterangan Perubahan
+- Latar animasi horizontal scrollytelling menggunakan foto nyata lanskap Minahasa Selatan dengan parallax dan crossfade dinamis
+- feat(landing): integrasi latar animasi scrollytelling foto nyata lanskap Minahasa Selatan dengan parallax crossfade dan switcher mode (8c76aa9)
+
+---
+
 ## [0.5.3] - 2026-11-10
 
 ### Keterangan Perubahan
@@ -93,6 +101,7 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 - Workflow otomasi CI/CD & GitHub Releases (`.github/workflows/release.yml`, `.github/workflows/ci.yml`).
 - Skema dasar basis data spasial (tabel batas administrasi kecamatan/desa dan objek tematik).
 - Konfigurasi `.gitignore` menyeluruh untuk CI4, Vue 3, GIS, dan cPanel.
+
 
 
 
