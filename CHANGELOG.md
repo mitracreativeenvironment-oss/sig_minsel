@@ -11,6 +11,14 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 
 ---
 
+## [0.5.2] - 2026-11-10
+
+### Keterangan Perubahan
+- Tampilan default fokus teritorial Minsel: blur & desaturasi wilayah luar, garis batas kabupaten tegas bercahaya
+- feat(map): implementasi efek visual fokus Minsel dengan blur dan desaturasi wilayah luar serta batas kabupaten tegas (f45a1bb)
+
+---
+
 ## [0.5.1] - 2026-11-10
 
 ### Keterangan Perubahan
@@ -77,6 +85,7 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 - Workflow otomasi CI/CD & GitHub Releases (`.github/workflows/release.yml`, `.github/workflows/ci.yml`).
 - Skema dasar basis data spasial (tabel batas administrasi kecamatan/desa dan objek tematik).
 - Konfigurasi `.gitignore` menyeluruh untuk CI4, Vue 3, GIS, dan cPanel.
+
 
 
 
