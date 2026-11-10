@@ -194,6 +194,8 @@ export interface DatasetItem {
   tipe_geometri: 'Point' | 'LineString' | 'Polygon';
   jumlah_fitur: number;
   status: WorkflowStatusCode;
+  versi?: string;
+  revisi_ke?: number;
   kecamatan?: string;
   crs: string;
   submitted_by: string;
@@ -263,4 +265,47 @@ export interface KategoriSpasialItem {
   nama_opd: string;
   is_active: boolean;
   total_datasets?: number;
+}
+
+// ==========================================
+// AUDIT LOG & JEJAK AKTIVITAS SISTEM
+// ==========================================
+
+export interface AuditLogItem {
+  id: number;
+  kategori: string;
+  aksi: string;
+  aktor: string;
+  role: string;
+  opd: string;
+  objek: string;
+  keterangan: string;
+  versi_terkait?: string;
+  ip_address?: string;
+  timestamp: string;
+}
+
+// ==========================================
+// ANALITIK & STATISTIK PENGUNJUNG GEOPORTAL
+// ==========================================
+
+export interface VisitorSummary {
+  total_kunjungan: number;
+  kunjungan_hari_ini: number;
+  kunjungan_bulan_ini: number;
+  pengunjung_unik: number;
+  perangkat: {
+    desktop: number;
+    mobile: number;
+    tablet: number;
+  };
+  tren_mingguan: Array<{
+    tanggal: string;
+    hits: number;
+  }>;
+  halaman_populer: Array<{
+    page: string;
+    hits: number;
+  }>;
+  terakhir_diperbarui: string;
 }

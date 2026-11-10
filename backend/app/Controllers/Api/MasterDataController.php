@@ -678,6 +678,17 @@ class MasterDataController extends BaseApiController
         $opds[] = $newOpd;
         self::saveStorageOpds($opds);
 
+        AuditLogController::record([
+            'kategori'      => 'OPD',
+            'aksi'          => 'CREATE_OPD',
+            'aktor'         => 'Superadmin Diskominfo',
+            'role'          => 'superadmin',
+            'opd'           => $namaOpd,
+            'objek'         => "{$namaOpd} ({$kodeOpd})",
+            'keterangan'    => 'Penambahan data master Organisasi Perangkat Daerah baru',
+            'versi_terkait' => '-'
+        ]);
+
         return $this->respondSuccess($newOpd, "OPD '{$namaOpd}' berhasil ditambahkan ke sistem.");
     }
 
@@ -717,6 +728,18 @@ class MasterDataController extends BaseApiController
                 if ($isActive !== null) $o['is_active'] = $isActive;
 
                 self::saveStorageOpds($opds);
+
+                AuditLogController::record([
+                    'kategori'      => 'OPD',
+                    'aksi'          => 'UPDATE_OPD',
+                    'aktor'         => 'Superadmin Diskominfo',
+                    'role'          => 'superadmin',
+                    'opd'           => $o['nama_opd'],
+                    'objek'         => "{$o['nama_opd']} ({$o['kode_opd']})",
+                    'keterangan'    => 'Pembaruan data kontak/informasi master OPD',
+                    'versi_terkait' => '-'
+                ]);
+
                 return $this->respondSuccess($o, "Data OPD '{$o['nama_opd']}' berhasil diperbarui.");
             }
         }
@@ -758,10 +781,22 @@ class MasterDataController extends BaseApiController
             return $this->respondError('OPD tidak ditemukan.', 404);
         }
 
-        $deletedName = $opds[$targetKey]['nama_opd'];
+        $deletedOpd = $opds[$targetKey];
+        $deletedName = $deletedOpd['nama_opd'];
         unset($opds[$targetKey]);
         $opds = array_values($opds);
         self::saveStorageOpds($opds);
+
+        AuditLogController::record([
+            'kategori'      => 'OPD',
+            'aksi'          => 'DELETE_OPD',
+            'aktor'         => 'Superadmin Diskominfo',
+            'role'          => 'superadmin',
+            'opd'           => $deletedName,
+            'objek'         => "{$deletedName} ({$deletedOpd['kode_opd']})",
+            'keterangan'    => 'Penghapusan OPD dari sistem data terpadu',
+            'versi_terkait' => '-'
+        ]);
 
         return $this->respondSuccess(['id' => $id], "OPD '{$deletedName}' berhasil dihapus dari sistem.");
     }
@@ -858,6 +893,17 @@ class MasterDataController extends BaseApiController
         $kategoris[] = $newKategori;
         self::saveStorageKategori($kategoris);
 
+        AuditLogController::record([
+            'kategori'      => 'KATEGORI',
+            'aksi'          => 'CREATE_KATEGORI',
+            'aktor'         => 'Superadmin Diskominfo',
+            'role'          => 'superadmin',
+            'opd'           => $namaOpd ?: 'Pemkab Minahasa Selatan',
+            'objek'         => "{$namaKategori} ({$kode})",
+            'keterangan'    => 'Penambahan kategori spasial tematik baru',
+            'versi_terkait' => '-'
+        ]);
+
         return $this->respondSuccess($newKategori, "Kategori spasial '{$namaKategori}' berhasil ditambahkan.");
     }
 
@@ -897,6 +943,18 @@ class MasterDataController extends BaseApiController
                 if ($isActive !== null) $k['is_active'] = $isActive;
 
                 self::saveStorageKategori($kategoris);
+
+                AuditLogController::record([
+                    'kategori'      => 'KATEGORI',
+                    'aksi'          => 'UPDATE_KATEGORI',
+                    'aktor'         => 'Superadmin Diskominfo',
+                    'role'          => 'superadmin',
+                    'opd'           => $k['nama_opd'] ?? 'Pemkab Minahasa Selatan',
+                    'objek'         => "{$k['nama_kategori']} ({$k['kode']})",
+                    'keterangan'    => 'Pembaruan informasi dan metadata kategori spasial',
+                    'versi_terkait' => '-'
+                ]);
+
                 return $this->respondSuccess($k, "Kategori spasial '{$k['nama_kategori']}' berhasil diperbarui.");
             }
         }
@@ -938,11 +996,24 @@ class MasterDataController extends BaseApiController
             return $this->respondError('Kategori spasial tidak ditemukan.', 404);
         }
 
-        $deletedName = $kategoris[$targetKey]['nama_kategori'];
+        $deletedKat = $kategoris[$targetKey];
+        $deletedName = $deletedKat['nama_kategori'];
         unset($kategoris[$targetKey]);
         $kategoris = array_values($kategoris);
         self::saveStorageKategori($kategoris);
 
+        AuditLogController::record([
+            'kategori'      => 'KATEGORI',
+            'aksi'          => 'DELETE_KATEGORI',
+            'aktor'         => 'Superadmin Diskominfo',
+            'role'          => 'superadmin',
+            'opd'           => $deletedKat['nama_opd'] ?? 'Pemkab Minahasa Selatan',
+            'objek'         => "{$deletedName} ({$deletedKat['kode']})",
+            'keterangan'    => 'Penghapusan kategori spasial tematik',
+            'versi_terkait' => '-'
+        ]);
+
         return $this->respondSuccess(['id' => $id], "Kategori spasial '{$deletedName}' berhasil dihapus.");
     }
 }
+

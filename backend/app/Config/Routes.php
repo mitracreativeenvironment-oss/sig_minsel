@@ -71,4 +71,12 @@ $routes->group('spasials', static function ($routes) {
     $routes->post('admin/kategori/create', 'Api\MasterDataController::createKategori');
     $routes->post('admin/kategori/update', 'Api\MasterDataController::updateKategori');
     $routes->post('admin/kategori/delete', 'Api\MasterDataController::deleteKategori');
+
+    // Modul Audit Log & Jejak Aktivitas Sistem (Superadmin, Admin GIS, Approver Data)
+    $routes->get('admin/logs', 'Api\AuditLogController::getLogs');
+    $routes->post('admin/logs/create', 'Api\AuditLogController::createLog');
+
+    // Modul Analitik & Statistik Pengunjung Geoportal Terintegrasi
+    $routes->get('analytics/summary', 'Api\VisitorAnalyticsController::getSummary');
+    $routes->post('analytics/track', 'Api\VisitorAnalyticsController::track');
 });

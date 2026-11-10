@@ -267,22 +267,53 @@ class WorkflowController extends BaseApiController
         $actorRole = trim($input['actor_role'] ?? 'superadmin');
 
         $datasets = self::getStorageDatasets();
-        $found = false;
+        $targetDataset = null;
         foreach ($datasets as &$dataset) {
             if ($dataset['id'] === $datasetId) {
                 $dataset['status'] = $newStatus;
                 $dataset['updated_at'] = date('Y-m-d H:i:s');
                 $dataset['catatan_validasi'] = $catatan;
-                $found = true;
+
+                // Sistem Versi Otomatis Terintegrasi
+                if (in_array($newStatus, ['APPROVED', 'PUBLISHED'])) {
+                    $dataset['versi'] = 'v2.0-RESMI';
+                } elseif ($newStatus === 'REJECTED_GIS') {
+                    $curRev = (int)($dataset['revisi_ke'] ?? 1);
+                    $dataset['revisi_ke'] = $curRev + 1;
+                    $dataset['versi'] = 'v1.' . $curRev . '-REV';
+                } elseif (empty($dataset['versi'])) {
+                    $dataset['versi'] = 'v1.0';
+                }
+
+                $targetDataset = $dataset;
                 break;
             }
         }
 
-        if (!$found) {
+        if (!$targetDataset) {
             return $this->respondError('Dataset dengan ID tersebut tidak ditemukan.', 404);
         }
 
         self::saveStorageDatasets($datasets);
+
+        // Pencatatan Log Audit Otomatis
+        $kategoriLog = 'DATASET';
+        if (in_array($newStatus, ['SUBMITTED_GIS', 'IN_VALIDATION_GIS', 'APPROVED_GIS', 'REJECTED_GIS'])) {
+            $kategoriLog = 'VALIDASI';
+        } elseif (in_array($newStatus, ['SUBMITTED_APPROVAL', 'IN_APPROVAL', 'APPROVED'])) {
+            $kategoriLog = 'PERSETUJUAN';
+        }
+
+        AuditLogController::record([
+            'kategori'      => $kategoriLog,
+            'aksi'          => $newStatus,
+            'aktor'         => ucfirst(str_replace('_', ' ', $actorRole)),
+            'role'          => $actorRole,
+            'opd'           => $targetDataset['opd'] ?? 'Pemkab Minahasa Selatan',
+            'objek'         => $targetDataset['nama_dataset'] ?? ('Dataset #' . $datasetId),
+            'keterangan'    => $catatan,
+            'versi_terkait' => $targetDataset['versi'] ?? 'v1.0'
+        ]);
 
         return $this->respondSuccess([
             'dataset_id' => $datasetId,
@@ -348,6 +379,8 @@ class WorkflowController extends BaseApiController
             'tipe_geometri' => in_array($tipeGeom, ['Point', 'LineString', 'Polygon']) ? $tipeGeom : 'Point',
             'jumlah_fitur' => $jumlahFitur,
             'status' => 'DRAFT',
+            'versi' => 'v1.0',
+            'revisi_ke' => 1,
             'kecamatan' => $kecamatan,
             'crs' => 'EPSG:4326',
             'submitted_by' => $submittedBy,
@@ -358,6 +391,17 @@ class WorkflowController extends BaseApiController
 
         $datasets[] = $newDataset;
         self::saveStorageDatasets($datasets);
+
+        AuditLogController::record([
+            'kategori'      => 'DATASET',
+            'aksi'          => 'CREATE_DRAFT',
+            'aktor'         => $submittedBy,
+            'role'          => 'operator_opd',
+            'opd'           => $opd,
+            'objek'         => $namaDataset,
+            'keterangan'    => 'Pembuatan draft dataset spasial baru versi v1.0',
+            'versi_terkait' => 'v1.0'
+        ]);
 
         return $this->respondSuccess($newDataset, "Dataset '{$namaDataset}' berhasil dibuat dengan status DRAFT.");
     }
@@ -400,7 +444,26 @@ class WorkflowController extends BaseApiController
                 if (!empty($tipeGeom)) $dataset['tipe_geometri'] = $tipeGeom;
                 $dataset['updated_at'] = date('Y-m-d H:i:s');
 
+                // Auto bumping revision on draft edit
+                $curRev = (int)($dataset['revisi_ke'] ?? 1) + 1;
+                $dataset['revisi_ke'] = $curRev;
+                if (str_starts_with($dataset['versi'] ?? 'v1.0', 'v1.')) {
+                    $dataset['versi'] = 'v1.' . ($curRev - 1);
+                }
+
                 self::saveStorageDatasets($datasets);
+
+                AuditLogController::record([
+                    'kategori'      => 'DATASET',
+                    'aksi'          => 'UPDATE_DATASET',
+                    'aktor'         => ucfirst(str_replace('_', ' ', $actorRole)),
+                    'role'          => $actorRole,
+                    'opd'           => $dataset['opd'] ?? 'Pemkab Minahasa Selatan',
+                    'objek'         => $dataset['nama_dataset'],
+                    'keterangan'    => 'Pembaruan atribut dan metadata dataset',
+                    'versi_terkait' => $dataset['versi']
+                ]);
+
                 return $this->respondSuccess($dataset, "Dataset ID #{$datasetId} berhasil diperbarui.");
             }
         }
@@ -441,10 +504,22 @@ class WorkflowController extends BaseApiController
             return $this->respondError('Dataset tidak ditemukan.', 404);
         }
 
-        $deletedName = $datasets[$targetKey]['nama_dataset'];
+        $deletedItem = $datasets[$targetKey];
+        $deletedName = $deletedItem['nama_dataset'];
         unset($datasets[$targetKey]);
         $datasets = array_values($datasets);
         self::saveStorageDatasets($datasets);
+
+        AuditLogController::record([
+            'kategori'      => 'DATASET',
+            'aksi'          => 'DELETE_DATASET',
+            'aktor'         => ucfirst(str_replace('_', ' ', $actorRole)),
+            'role'          => $actorRole,
+            'opd'           => $deletedItem['opd'] ?? 'Pemkab Minahasa Selatan',
+            'objek'         => $deletedName,
+            'keterangan'    => 'Penghapusan dataset draft dari sistem',
+            'versi_terkait' => $deletedItem['versi'] ?? 'v1.0'
+        ]);
 
         return $this->respondSuccess([
             'id' => $datasetId,
@@ -483,10 +558,22 @@ class WorkflowController extends BaseApiController
             return $this->respondError('Data versi batas wilayah tidak ditemukan.', 404);
         }
 
-        $deletedLabel = $versions[$targetKey]['label_tipe'] . ' (' . $versions[$targetKey]['versi'] . ')';
+        $deletedItem = $versions[$targetKey];
+        $deletedLabel = $deletedItem['label_tipe'] . ' (' . $deletedItem['versi'] . ')';
         unset($versions[$targetKey]);
         $versions = array_values($versions);
         self::saveStorageDataDasar($versions);
+
+        AuditLogController::record([
+            'kategori'      => 'DATA_DASAR',
+            'aksi'          => 'HAPUS_SHP',
+            'aktor'         => 'Superadmin Diskominfo',
+            'role'          => 'superadmin',
+            'opd'           => 'Diskominfo Minahasa Selatan',
+            'objek'         => $deletedLabel,
+            'keterangan'    => 'Penghapusan arsip data dasar SHP tidak aktif',
+            'versi_terkait' => $deletedItem['versi'] ?? '-'
+        ]);
 
         return $this->respondSuccess(['id' => $id], "Berkas data dasar '{$deletedLabel}' berhasil dihapus.");
     }
@@ -559,6 +646,17 @@ class WorkflowController extends BaseApiController
         $versions[] = $newVersion;
         self::saveStorageDataDasar($versions);
 
+        AuditLogController::record([
+            'kategori'      => 'DATA_DASAR',
+            'aksi'          => 'UPLOAD_SHP',
+            'aktor'         => 'Superadmin Diskominfo',
+            'role'          => 'superadmin',
+            'opd'           => 'Diskominfo Minahasa Selatan',
+            'objek'         => $newVersion['label_tipe'],
+            'keterangan'    => 'Unggah dan verifikasi berkas SHP ZIP ' . $namaFile,
+            'versi_terkait' => $newVersion['versi']
+        ]);
+
         return $this->respondSuccess([
             'version_record' => $newVersion,
             'validation_report' => $validationChecks
@@ -579,6 +677,18 @@ class WorkflowController extends BaseApiController
                 $ver['status'] = 'AKTIF';
                 $ver['activated_at'] = date('Y-m-d H:i:s');
                 self::saveStorageDataDasar($versions);
+
+                AuditLogController::record([
+                    'kategori'      => 'DATA_DASAR',
+                    'aksi'          => 'AKTIVASI_SHP',
+                    'aktor'         => 'Superadmin Diskominfo',
+                    'role'          => 'superadmin',
+                    'opd'           => 'Diskominfo Minahasa Selatan',
+                    'objek'         => $ver['label_tipe'],
+                    'keterangan'    => 'Aktivasi rujukan resmi batas wilayah versi ' . $ver['versi'],
+                    'versi_terkait' => $ver['versi']
+                ]);
+
                 return $this->respondSuccess($ver, "Versi {$ver['versi']} berhasil diaktifkan sebagai acuan resmi.");
             }
         }

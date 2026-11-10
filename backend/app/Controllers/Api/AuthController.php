@@ -398,6 +398,17 @@ class AuthController extends BaseApiController
         $users[] = $newUser;
         self::saveStorageUsers($users);
 
+        AuditLogController::record([
+            'kategori'      => 'USER',
+            'aksi'          => 'CREATE_USER',
+            'aktor'         => 'Superadmin Diskominfo',
+            'role'          => 'superadmin',
+            'opd'           => $opd,
+            'objek'         => "{$namaLengkap} ({$username})",
+            'keterangan'    => "Pendaftaran akun pengguna baru role {$roleLabel}",
+            'versi_terkait' => '-'
+        ]);
+
         return $this->respondSuccess($newUser, "Pengguna '{$namaLengkap}' ({$username}) berhasil didaftarkan.");
     }
 
@@ -427,6 +438,18 @@ class AuthController extends BaseApiController
                 $u['is_active'] = !$u['is_active'];
                 self::saveStorageUsers($users);
                 $statusText = $u['is_active'] ? 'diaktifkan' : 'dinonaktifkan';
+
+                AuditLogController::record([
+                    'kategori'      => 'USER',
+                    'aksi'          => $u['is_active'] ? 'AKTIFKAN_USER' : 'NONAKTIFKAN_USER',
+                    'aktor'         => 'Superadmin Diskominfo',
+                    'role'          => 'superadmin',
+                    'opd'           => $u['opd'] ?? 'Pemkab Minahasa Selatan',
+                    'objek'         => "{$u['nama_lengkap']} ({$u['username']})",
+                    'keterangan'    => "Status akun pengguna {$statusText}",
+                    'versi_terkait' => '-'
+                ]);
+
                 return $this->respondSuccess($u, "Akun {$u['username']} berhasil {$statusText}.");
             }
         }
@@ -472,6 +495,18 @@ class AuthController extends BaseApiController
                 if (!empty($kodeOpd)) $u['kode_opd'] = $kodeOpd;
 
                 self::saveStorageUsers($users);
+
+                AuditLogController::record([
+                    'kategori'      => 'USER',
+                    'aksi'          => 'UPDATE_USER',
+                    'aktor'         => 'Superadmin Diskominfo',
+                    'role'          => 'superadmin',
+                    'opd'           => $u['opd'] ?? 'Pemkab Minahasa Selatan',
+                    'objek'         => "{$u['nama_lengkap']} ({$u['username']})",
+                    'keterangan'    => "Pembaruan data profil/role pengguna",
+                    'versi_terkait' => '-'
+                ]);
+
                 return $this->respondSuccess($u, "Data pengguna '{$u['nama_lengkap']}' berhasil diperbarui.");
             }
         }
@@ -512,10 +547,22 @@ class AuthController extends BaseApiController
             return $this->respondError('Pengguna tidak ditemukan.', 404);
         }
 
-        $deletedUsername = $users[$targetKey]['username'];
+        $deletedUser = $users[$targetKey];
+        $deletedUsername = $deletedUser['username'];
         unset($users[$targetKey]);
         $users = array_values($users);
         self::saveStorageUsers($users);
+
+        AuditLogController::record([
+            'kategori'      => 'USER',
+            'aksi'          => 'DELETE_USER',
+            'aktor'         => 'Superadmin Diskominfo',
+            'role'          => 'superadmin',
+            'opd'           => $deletedUser['opd'] ?? 'Pemkab Minahasa Selatan',
+            'objek'         => "{$deletedUser['nama_lengkap']} ({$deletedUsername})",
+            'keterangan'    => "Penghapusan akun pengguna dari sistem",
+            'versi_terkait' => '-'
+        ]);
 
         return $this->respondSuccess(['id' => $userId], "Akun pengguna '{$deletedUsername}' berhasil dihapus.");
     }

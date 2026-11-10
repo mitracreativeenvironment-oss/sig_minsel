@@ -14,7 +14,9 @@ import type {
   ShpValidationReport,
   UserItem,
   OpdItem,
-  KategoriSpasialItem
+  KategoriSpasialItem,
+  AuditLogItem,
+  VisitorSummary
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/spasials';
@@ -410,6 +412,50 @@ export const sigApi = {
     return request('/admin/kategori/delete', {
       method: 'POST',
       body: JSON.stringify({ id })
+    });
+  },
+
+  // ==========================================
+  // AUDIT LOG & JEJAK AKTIVITAS SISTEM
+  // ==========================================
+
+  async getAuditLogs(params?: { kategori?: string; aksi?: string; search?: string }): Promise<{
+    data: {
+      logs: AuditLogItem[];
+      total: number;
+      filtered: number;
+      kategori_list: string[];
+      aksi_list: string[];
+    };
+    message: string;
+  }> {
+    const q = new URLSearchParams();
+    if (params?.kategori) q.set('kategori', params.kategori);
+    if (params?.aksi) q.set('aksi', params.aksi);
+    if (params?.search) q.set('search', params.search);
+    const qs = q.toString() ? `?${q.toString()}` : '';
+    return request(`/admin/logs${qs}`);
+  },
+
+  async createAuditLog(payload: Partial<AuditLogItem>): Promise<{ data: AuditLogItem; message: string }> {
+    return request('/admin/logs/create', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  // ==========================================
+  // ANALITIK & STATISTIK PENGUNJUNG GEOPORTAL
+  // ==========================================
+
+  async getVisitorSummary(): Promise<{ data: VisitorSummary; message: string }> {
+    return request('/analytics/summary');
+  },
+
+  async trackVisitor(payload: { page?: string; device?: string; meta?: any }): Promise<{ data: any; message: string }> {
+    return request('/analytics/track', {
+      method: 'POST',
+      body: JSON.stringify(payload)
     });
   }
 };

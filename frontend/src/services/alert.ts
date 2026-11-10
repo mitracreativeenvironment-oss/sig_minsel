@@ -131,3 +131,21 @@ export async function promptNoteDialog(options: {
   }
   return null;
 }
+
+/**
+ * Dialog Detail Informasi Kanan Atas (Top-End)
+ */
+export async function showDetailDialog(title: string, htmlContent: string) {
+  return Swal.fire({
+    position: 'top-end',
+    icon: 'info',
+    title: title,
+    html: htmlContent,
+    confirmButtonText: 'Tutup',
+    confirmButtonColor: '#2563eb',
+    customClass: {
+      popup: 'geominsel-confirm-popup'
+    }
+  });
+}
+

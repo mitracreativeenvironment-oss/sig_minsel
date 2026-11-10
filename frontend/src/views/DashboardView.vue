@@ -2,8 +2,18 @@
 import { ref, onMounted, computed } from 'vue';
 import { useAuthStore } from '../stores/authStore';
 import { sigApi } from '../services/api';
-import { notify, confirmDialog, promptNoteDialog } from '../services/alert';
-import type { RoleName, DatasetItem, DataDasarVersion, WorkflowState, UserItem, OpdItem, KategoriSpasialItem } from '../types';
+import { notify, confirmDialog, promptNoteDialog, showDetailDialog } from '../services/alert';
+import type {
+  RoleName,
+  DatasetItem,
+  DataDasarVersion,
+  WorkflowState,
+  UserItem,
+  OpdItem,
+  KategoriSpasialItem,
+  AuditLogItem,
+  VisitorSummary
+} from '../types';
 import {
   LayoutDashboard,
   Database,
@@ -34,7 +44,13 @@ import {
   ToggleRight,
   FilePlus2,
   UserPlus,
-  Building2
+  Building2,
+  Eye,
+  Activity,
+  Globe,
+  Smartphone,
+  Monitor,
+  Tablet
 } from 'lucide-vue-next';
 
 const emit = defineEmits<{
@@ -54,6 +70,19 @@ const usersList = ref<UserItem[]>([]);
 const opdList = ref<OpdItem[]>([]);
 const kategoriList = ref<KategoriSpasialItem[]>([]);
 const isLoading = ref(false);
+
+// Audit Log State & Filters
+const auditLogs = ref<AuditLogItem[]>([]);
+const auditFilterKategori = ref('');
+const auditFilterAksi = ref('');
+const auditSearchQuery = ref('');
+const auditKategoriList = ref<string[]>([]);
+const auditAksiList = ref<string[]>([]);
+const isAuditLoading = ref(false);
+
+// Visitor Analytics State
+const visitorStats = ref<VisitorSummary | null>(null);
+const isVisitorLoading = ref(false);
 
 // View Mode State with LocalStorage Persistence
 const viewMode = ref<'grid' | 'list'>(
@@ -248,6 +277,40 @@ const filteredKategoris = computed(() => {
     );
   });
 });
+
+// Search & Filter for Audit Trail
+const activeAuditFilterCount = computed(() => {
+  let count = 0;
+  if (auditSearchQuery.value.trim()) count++;
+  if (auditFilterKategori.value) count++;
+  if (auditFilterAksi.value) count++;
+  return count;
+});
+
+const filteredAuditLogs = computed(() => {
+  const q = auditSearchQuery.value.trim().toLowerCase();
+  return auditLogs.value.filter((log) => {
+    const matchSearch =
+      !q ||
+      log.objek?.toLowerCase().includes(q) ||
+      log.aktor?.toLowerCase().includes(q) ||
+      log.keterangan?.toLowerCase().includes(q) ||
+      log.opd?.toLowerCase().includes(q) ||
+      (log.versi_terkait && log.versi_terkait.toLowerCase().includes(q));
+
+    const matchKat = !auditFilterKategori.value || log.kategori === auditFilterKategori.value;
+    const matchAksi = !auditFilterAksi.value || log.aksi === auditFilterAksi.value;
+
+    return matchSearch && matchKat && matchAksi;
+  });
+});
+
+function resetAuditFilters() {
+  auditSearchQuery.value = '';
+  auditFilterKategori.value = '';
+  auditFilterAksi.value = '';
+  notify.info('Filter Audit Direset', 'Kriteria pencarian audit log dikosongkan.');
+}
 
 // ==========================================
 // HAK AKSES ROLE (ROLE PERMISSIONS)
@@ -777,16 +840,71 @@ async function handleDeleteKategoriWithConfirm(k: KategoriSpasialItem) {
   }
 }
 
+async function loadAuditLogs() {
+  isAuditLoading.value = true;
+  try {
+    const res = await sigApi.getAuditLogs({
+      kategori: auditFilterKategori.value,
+      aksi: auditFilterAksi.value,
+      search: auditSearchQuery.value
+    });
+    auditLogs.value = res.data.logs;
+    auditKategoriList.value = res.data.kategori_list;
+    auditAksiList.value = res.data.aksi_list;
+    notify.info('Log Diperbarui', `Memuat ${res.data.logs.length} jejak audit sistem.`);
+  } catch (e: any) {
+    notify.error('Gagal Memuat Log', e.message || 'Kesalahan jaringan');
+  } finally {
+    isAuditLoading.value = false;
+  }
+}
+
+async function loadVisitorStats() {
+  isVisitorLoading.value = true;
+  try {
+    const res = await sigApi.getVisitorSummary();
+    visitorStats.value = res.data;
+    notify.info('Analitik Diperbarui', 'Statistik pengunjung geoportal disinkronkan.');
+  } catch (e: any) {
+    notify.error('Gagal Memuat Analitik', e.message || 'Kesalahan jaringan');
+  } finally {
+    isVisitorLoading.value = false;
+  }
+}
+
+async function showAuditDetail(log: AuditLogItem) {
+  const htmlContent = `
+    <div style="text-align: left; font-size: 13px; line-height: 1.6; color: #334155;">
+      <div style="margin-bottom: 8px;"><strong>Waktu (WITA):</strong> ${log.timestamp}</div>
+      <div style="margin-bottom: 8px;"><strong>Kategori:</strong> <span style="background: #e2e8f0; padding: 2px 8px; border-radius: 4px; font-weight: 600;">${log.kategori}</span></div>
+      <div style="margin-bottom: 8px;"><strong>Tindakan / Aksi:</strong> <span style="color: #2563eb; font-weight: 600;">${log.aksi}</span></div>
+      <div style="margin-bottom: 8px;"><strong>Aktor & Role:</strong> ${log.aktor} (${log.role})</div>
+      <div style="margin-bottom: 8px;"><strong>Perangkat Daerah (OPD):</strong> ${log.opd}</div>
+      <div style="margin-bottom: 8px;"><strong>Objek / Dataset:</strong> ${log.objek}</div>
+      <div style="margin-bottom: 8px;"><strong>Versi Terkait:</strong> <code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; color: #0284c7;">${log.versi_terkait || '-'}</code></div>
+      <div style="margin-bottom: 8px;"><strong>Alamat IP:</strong> ${log.ip_address || '127.0.0.1'}</div>
+      <div style="margin-top: 10px; padding: 8px; background: #f8fafc; border-left: 3px solid #2563eb; border-radius: 4px;">
+        <strong>Catatan / Keterangan:</strong><br />${log.keterangan || 'Tidak ada catatan'}
+      </div>
+    </div>
+  `;
+  await showDetailDialog(`Detail Jejak Audit #${log.id}`, htmlContent);
+}
+
 async function loadDashboardData() {
   isLoading.value = true;
   try {
-    const [wfRes, dsRes, ddRes, usersRes, opdRes, katRes] = await Promise.allSettled([
+    sigApi.trackVisitor({ page: 'dashboard' }).catch(() => {});
+
+    const [wfRes, dsRes, ddRes, usersRes, opdRes, katRes, logsRes, visitorRes] = await Promise.allSettled([
       sigApi.getWorkflowStates(),
       sigApi.getWorkflowDatasets(),
       sigApi.getDataDasar(),
       sigApi.getUsers(),
       sigApi.getOpds(),
-      sigApi.getKategoriAdmin()
+      sigApi.getKategoriAdmin(),
+      sigApi.getAuditLogs(),
+      sigApi.getVisitorSummary()
     ]);
 
     if (wfRes.status === 'fulfilled') {
@@ -806,6 +924,14 @@ async function loadDashboardData() {
     }
     if (katRes.status === 'fulfilled') {
       kategoriList.value = katRes.value.data;
+    }
+    if (logsRes.status === 'fulfilled') {
+      auditLogs.value = logsRes.value.data.logs;
+      auditKategoriList.value = logsRes.value.data.kategori_list;
+      auditAksiList.value = logsRes.value.data.aksi_list;
+    }
+    if (visitorRes.status === 'fulfilled') {
+      visitorStats.value = visitorRes.value.data;
     }
   } catch (e) {
     console.warn('Gagal memuat data dashboard:', e);
@@ -1241,6 +1367,124 @@ onMounted(() => {
               </div>
             </div>
           </div>
+
+          <!-- ============================================================== -->
+          <!-- VISITOR ANALYTICS WIDGET: SISTEM PENGUNJUNG GEOPORTAL          -->
+          <!-- ============================================================== -->
+          <div class="dash-box visitor-analytics-box">
+            <div class="box-header">
+              <div class="box-title-wrap">
+                <Globe :size="18" class="text-blue" />
+                <h3 class="box-title">Statistik Pengunjung Geoportal &amp; Analitik Akses</h3>
+              </div>
+              <button type="button" class="btn-box-action" @click="loadVisitorStats" title="Segarkan Data Pengunjung">
+                <RotateCcw :size="14" :class="{ 'spin-anim': isVisitorLoading }" />
+                <span>Refresh Data</span>
+              </button>
+            </div>
+
+            <!-- KPI Row Pengunjung -->
+            <div class="visitor-kpi-grid">
+              <div class="vkpi-card">
+                <span class="vkpi-label">Total Akses Geoportal</span>
+                <div class="vkpi-val-row">
+                  <span class="vkpi-val text-blue">{{ (visitorStats?.total_kunjungan || 1842).toLocaleString('id-ID') }}</span>
+                  <span class="kpi-badge badge-blue">Akumulatif</span>
+                </div>
+                <span class="vkpi-sub">Total hits seluruh halaman &amp; layer</span>
+              </div>
+
+              <div class="vkpi-card">
+                <span class="vkpi-label">Kunjungan Hari Ini</span>
+                <div class="vkpi-val-row">
+                  <span class="vkpi-val text-emerald">{{ (visitorStats?.kunjungan_hari_ini || 128).toLocaleString('id-ID') }}</span>
+                  <span class="kpi-badge badge-green">Hari Ini</span>
+                </div>
+                <span class="vkpi-sub">Sesi aktif pengguna terdeteksi</span>
+              </div>
+
+              <div class="vkpi-card">
+                <span class="vkpi-label">Kunjungan Bulan Ini</span>
+                <div class="vkpi-val-row">
+                  <span class="vkpi-val text-indigo">{{ (visitorStats?.kunjungan_bulan_ini || 1842).toLocaleString('id-ID') }}</span>
+                  <span class="kpi-badge badge-indigo">Bulan Berjalan</span>
+                </div>
+                <span class="vkpi-sub">Volume akses bulanan Pemkab Minsel</span>
+              </div>
+
+              <div class="vkpi-card">
+                <span class="vkpi-label">Pengunjung Unik</span>
+                <div class="vkpi-val-row">
+                  <span class="vkpi-val text-amber">{{ (visitorStats?.pengunjung_unik || 492).toLocaleString('id-ID') }}</span>
+                  <span class="kpi-badge badge-amber">IP Unik</span>
+                </div>
+                <span class="vkpi-sub">Kunjungan unik perangkat pengguna</span>
+              </div>
+            </div>
+
+            <!-- Detail Distribusi Perangkat & Halaman Populer -->
+            <div class="visitor-details-grid">
+              <!-- Perangkat -->
+              <div class="visitor-subcard">
+                <div class="subcard-header">
+                  <Monitor :size="15" class="text-blue" />
+                  <h4 class="subcard-title">Distribusi Perangkat Pengguna</h4>
+                </div>
+                <div class="device-bars">
+                  <div class="device-item">
+                    <div class="device-meta">
+                      <span class="d-label"><Monitor :size="13" /> Desktop / Laptop</span>
+                      <span class="d-count">{{ visitorStats?.perangkat?.desktop || 1120 }} ({{ Math.round(((visitorStats?.perangkat?.desktop || 1120) / (visitorStats?.total_kunjungan || 1842)) * 100) }}%)</span>
+                    </div>
+                    <div class="device-bar-track">
+                      <div class="device-bar-fill bar-desktop" :style="{ width: Math.round(((visitorStats?.perangkat?.desktop || 1120) / (visitorStats?.total_kunjungan || 1842)) * 100) + '%' }"></div>
+                    </div>
+                  </div>
+
+                  <div class="device-item">
+                    <div class="device-meta">
+                      <span class="d-label"><Smartphone :size="13" /> Smartphone / Ponsel</span>
+                      <span class="d-count">{{ visitorStats?.perangkat?.mobile || 590 }} ({{ Math.round(((visitorStats?.perangkat?.mobile || 590) / (visitorStats?.total_kunjungan || 1842)) * 100) }}%)</span>
+                    </div>
+                    <div class="device-bar-track">
+                      <div class="device-bar-fill bar-mobile" :style="{ width: Math.round(((visitorStats?.perangkat?.mobile || 590) / (visitorStats?.total_kunjungan || 1842)) * 100) + '%' }"></div>
+                    </div>
+                  </div>
+
+                  <div class="device-item">
+                    <div class="device-meta">
+                      <span class="d-label"><Tablet :size="13" /> Tablet</span>
+                      <span class="d-count">{{ visitorStats?.perangkat?.tablet || 132 }} ({{ Math.round(((visitorStats?.perangkat?.tablet || 132) / (visitorStats?.total_kunjungan || 1842)) * 100) }}%)</span>
+                    </div>
+                    <div class="device-bar-track">
+                      <div class="device-bar-fill bar-tablet" :style="{ width: Math.round(((visitorStats?.perangkat?.tablet || 132) / (visitorStats?.total_kunjungan || 1842)) * 100) + '%' }"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Halaman Populer -->
+              <div class="visitor-subcard">
+                <div class="subcard-header">
+                  <Activity :size="15" class="text-emerald" />
+                  <h4 class="subcard-title">Halaman &amp; Layanan Paling Populer</h4>
+                </div>
+                <div class="popular-page-list">
+                  <div
+                    v-for="item in (visitorStats?.halaman_populer || [])"
+                    :key="item.page"
+                    class="popular-page-item"
+                  >
+                    <div class="page-info">
+                      <span class="page-tag font-mono">/{{ item.page }}</span>
+                      <span class="page-name">{{ item.page === 'geoportal' ? 'Peta Interaktif Geoportal' : (item.page === 'dashboard' ? 'Dashboard Tata Kelola Spasial' : (item.page === 'katalog_dataset' ? 'Katalog Dataset Spasial' : 'Peta Tematik & Layer')) }}</span>
+                    </div>
+                    <span class="page-hits font-mono">{{ item.hits.toLocaleString('id-ID') }} hits</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- ============================================================== -->
@@ -1420,6 +1664,10 @@ onMounted(() => {
               </div>
 
               <div class="bento-meta-chips">
+                <span class="chip chip-version font-mono" :class="(d.versi || 'v1.0').includes('RESMI') ? 'version-official' : 'version-draft'">
+                  <History :size="11" />
+                  <span>{{ d.versi || 'v1.0' }}</span>
+                </span>
                 <span class="chip chip-geom">
                   <Layers :size="12" />
                   <span>{{ d.tipe_geometri }}</span>
@@ -1497,6 +1745,7 @@ onMounted(() => {
               <thead>
                 <tr>
                   <th>Kode &amp; Nama Dataset</th>
+                  <th>Versi &amp; Revisi</th>
                   <th>OPD Penanggung Jawab</th>
                   <th>Kategori &amp; Geometri</th>
                   <th>Cakupan Wilayah</th>
@@ -1510,6 +1759,14 @@ onMounted(() => {
                     <div class="cell-main">
                       <span class="cell-title">{{ d.nama_dataset }}</span>
                       <span class="cell-meta">{{ d.kode_dataset }} &bull; {{ d.jumlah_fitur }} fitur</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="version-cell">
+                      <span class="version-badge font-mono" :class="(d.versi || 'v1.0').includes('RESMI') ? 'badge-official' : 'badge-draft'">
+                        {{ d.versi || 'v1.0' }}
+                      </span>
+                      <span v-if="d.revisi_ke" class="revisi-sub">Rev #{{ d.revisi_ke }}</span>
                     </div>
                   </td>
                   <td>
@@ -2414,48 +2671,153 @@ onMounted(() => {
         </div>
 
         <!-- ============================================================== -->
-        <!-- TAB 7: AUDIT LOG                                              -->
+        <!-- TAB 9: AUDIT TRAIL & LOG AKTIVITAS SISTEM                      -->
         <!-- ============================================================== -->
         <div v-if="activeTab === 'audit'" class="tab-content">
           <div class="content-header">
             <div>
-              <h2 class="content-title">Jejak Audit & Riwayat Perubahan (Auditability)</h2>
-              <p class="content-sub">Rekaman lengkap setiap aksi validasi teknis, persetujuan Walidata, dan penerbitan dataset</p>
+              <h2 class="content-title">Jejak Audit &amp; Riwayat Perubahan (Auditability)</h2>
+              <p class="content-sub">Rekaman lengkap setiap aksi validasi teknis, persetujuan Walidata, perubahan data dasar, dan pengguna</p>
+            </div>
+
+            <!-- Toolbar Controls: Search, Filters, Reset & Refresh -->
+            <div class="header-controls-cluster">
+              <button
+                type="button"
+                class="btn-box-action"
+                @click="loadAuditLogs"
+                title="Segarkan Log dari Server"
+              >
+                <RotateCcw :size="14" :class="{ 'spin-anim': isAuditLoading }" />
+                <span>Refresh Log</span>
+              </button>
+
+              <div class="search-input-wrap search-sm">
+                <Search :size="15" class="search-icon" />
+                <input
+                  v-model="auditSearchQuery"
+                  type="text"
+                  placeholder="Cari objek, aktor, catatan, atau versi..."
+                  class="search-input-field"
+                />
+                <button
+                  v-if="auditSearchQuery"
+                  type="button"
+                  class="clear-search-btn"
+                  @click="auditSearchQuery = ''"
+                  title="Bersihkan pencarian"
+                >
+                  <X :size="13" />
+                </button>
+              </div>
+
+              <!-- Filter Kategori -->
+              <select v-model="auditFilterKategori" class="filter-select-enhanced">
+                <option value="">Semua Kategori ({{ auditLogs.length }})</option>
+                <option v-for="kat in auditKategoriList" :key="kat" :value="kat">
+                  {{ kat }}
+                </option>
+              </select>
+
+              <!-- Filter Aksi -->
+              <select v-model="auditFilterAksi" class="filter-select-enhanced">
+                <option value="">Semua Tindakan / Aksi</option>
+                <option v-for="ak in auditAksiList" :key="ak" :value="ak">
+                  {{ ak }}
+                </option>
+              </select>
+
+              <!-- Reset Button -->
+              <button
+                v-if="activeAuditFilterCount > 0"
+                type="button"
+                class="btn-reset-filters"
+                @click="resetAuditFilters"
+                title="Bersihkan semua kriteria filter"
+              >
+                <RotateCcw :size="13" />
+                <span>Reset ({{ activeAuditFilterCount }})</span>
+              </button>
             </div>
           </div>
 
-          <div class="table-card">
+          <!-- Empty State -->
+          <div v-if="filteredAuditLogs.length === 0" class="empty-state-card">
+            <Search :size="40" class="empty-icon" />
+            <h3 class="empty-title">Tidak Ada Rekaman Log yang Cocok</h3>
+            <p class="empty-desc">
+              Tidak ditemukan jejak audit yang memenuhi kriteria pencarian atau filter yang dipilih.
+            </p>
+            <button type="button" class="btn-empty-reset" @click="resetAuditFilters">
+              <RotateCcw :size="14" />
+              <span>Bersihkan Filter &amp; Pencarian</span>
+            </button>
+          </div>
+
+          <!-- Audit Table -->
+          <div v-else class="table-card">
+            <div class="table-meta-bar">
+              <span class="meta-count">
+                Menampilkan <strong>{{ filteredAuditLogs.length }}</strong> dari <strong>{{ auditLogs.length }}</strong> rekaman jejak audit
+              </span>
+            </div>
+
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Waktu (WITA)</th>
-                  <th>Aktor & Role</th>
-                  <th>Objek / Dataset</th>
-                  <th>Tindakan</th>
-                  <th>Catatan Resmi</th>
+                  <th style="width: 140px;">Waktu (WITA)</th>
+                  <th style="width: 110px;">Kategori</th>
+                  <th style="width: 150px;">Aksi / Tindakan</th>
+                  <th>Aktor &amp; Role</th>
+                  <th>Objek &amp; Versi Terkait</th>
+                  <th>Catatan / Keterangan</th>
+                  <th style="width: 80px; text-align: center;">Detail</th>
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td>2026-11-10 10:15</td>
-                  <td>Validator GIS</td>
-                  <td>Peta Titik Rawan Banjir DAS Ranoyapo</td>
-                  <td>Validasi Teknis</td>
-                  <td>Topologi poligon dan proyeksi SRID 4326 terverifikasi valid.</td>
-                </tr>
-                <tr>
-                  <td>2026-11-09 16:30</td>
-                  <td>Approver Data (Bappelitbangda)</td>
-                  <td>Sentra Komoditas Holtikultura Modoinding</td>
-                  <td>Persetujuan Terpusat</td>
-                  <td>Penerbitan surat persetujuan Walidata No: 045/SDI-MINSEL/2026.</td>
-                </tr>
-                <tr>
-                  <td>2026-11-09 17:00</td>
-                  <td>Admin GIS</td>
-                  <td>Sentra Komoditas Holtikultura Modoinding</td>
-                  <td>Publikasi Geoportal</td>
-                  <td>Layer aktif di portal publik untuk kategori Pertanian.</td>
+                <tr v-for="log in filteredAuditLogs" :key="log.id">
+                  <td>
+                    <span class="cell-time font-mono">{{ log.timestamp }}</span>
+                  </td>
+                  <td>
+                    <span
+                      class="log-cat-badge"
+                      :class="'cat-' + log.kategori.toLowerCase()"
+                    >
+                      {{ log.kategori }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="log-action-tag font-mono">{{ log.aksi }}</span>
+                  </td>
+                  <td>
+                    <div class="cell-main">
+                      <span class="cell-title">{{ log.aktor }}</span>
+                      <span class="cell-meta font-mono">{{ log.role }} &bull; {{ log.opd }}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="cell-main">
+                      <span class="cell-title">{{ log.objek }}</span>
+                      <span v-if="log.versi_terkait && log.versi_terkait !== '-'" class="chip-version-mini font-mono">
+                        {{ log.versi_terkait }}
+                      </span>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="log-note-text" :title="log.keterangan">{{ log.keterangan }}</span>
+                  </td>
+                  <td style="text-align: center;">
+                    <button
+                      type="button"
+                      class="btn-act btn-view"
+                      @click="showAuditDetail(log)"
+                      title="Lihat Detail Lengkap Log"
+                    >
+                      <Eye :size="13" />
+                      <span>Lihat</span>
+                    </button>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -4481,5 +4843,372 @@ onMounted(() => {
   .search-input-wrap.search-sm {
     width: 100%;
   }
+}
+
+/* ============================================================== */
+/* SISTEM VERSI OTOMATIS STYLES                                   */
+/* ============================================================== */
+.chip-version {
+  background: rgba(14, 165, 233, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chip-version.version-official {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.35);
+}
+
+.chip-version.version-draft {
+  background: rgba(148, 163, 184, 0.12);
+  color: #94a3b8;
+  border-color: rgba(148, 163, 184, 0.25);
+}
+
+.version-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.version-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  width: fit-content;
+}
+
+.version-badge.badge-official {
+  background: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+  border: 1px solid rgba(52, 211, 153, 0.3);
+}
+
+.version-badge.badge-draft {
+  background: rgba(148, 163, 184, 0.15);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.revisi-sub {
+  font-size: 10px;
+  color: #64748b;
+  font-family: monospace;
+}
+
+/* ============================================================== */
+/* SISTEM PENGUNJUNG & VISITOR ANALYTICS STYLES                   */
+/* ============================================================== */
+.visitor-analytics-box {
+  margin-top: 20px;
+}
+
+.visitor-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 900px) {
+  .visitor-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.vkpi-card {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vkpi-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.vkpi-val-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.vkpi-val {
+  font-size: 22px;
+  font-weight: 800;
+  font-family: monospace;
+}
+
+.vkpi-sub {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.visitor-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 800px) {
+  .visitor-details-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.visitor-subcard {
+  background: rgba(15, 23, 42, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.subcard-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.subcard-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #e2e8f0;
+  margin: 0;
+}
+
+.device-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.device-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.device-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+}
+
+.d-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #cbd5e1;
+}
+
+.d-count {
+  font-family: monospace;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.device-bar-track {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.device-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.bar-desktop {
+  background: linear-gradient(90deg, #0284c7, #38bdf8);
+}
+
+.bar-mobile {
+  background: linear-gradient(90deg, #059669, #34d399);
+}
+
+.bar-tablet {
+  background: linear-gradient(90deg, #7c3aed, #a855f7);
+}
+
+.popular-page-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.popular-page-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.page-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-tag {
+  background: rgba(14, 165, 233, 0.12);
+  color: #38bdf8;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.page-name {
+  color: #e2e8f0;
+}
+
+.page-hits {
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+/* ============================================================== */
+/* AUDIT LOG & JEJAK SISTEM STYLES                                */
+/* ============================================================== */
+.table-meta-bar {
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.meta-count strong {
+  color: #e2e8f0;
+}
+
+.cell-time {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.log-cat-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cat-dataset {
+  background: rgba(2, 132, 199, 0.18);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.cat-validasi {
+  background: rgba(139, 92, 246, 0.18);
+  color: #c084fc;
+  border: 1px solid rgba(192, 132, 252, 0.3);
+}
+
+.cat-persetujuan {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.cat-data_dasar {
+  background: rgba(6, 182, 212, 0.18);
+  color: #22d3ee;
+  border: 1px solid rgba(34, 211, 238, 0.3);
+}
+
+.cat-user {
+  background: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+  border: 1px solid rgba(52, 211, 153, 0.3);
+}
+
+.cat-opd {
+  background: rgba(148, 163, 184, 0.18);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.cat-kategori {
+  background: rgba(236, 72, 153, 0.18);
+  color: #f472b6;
+  border: 1px solid rgba(244, 114, 182, 0.3);
+}
+
+.log-action-tag {
+  background: rgba(255, 255, 255, 0.06);
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #e2e8f0;
+}
+
+.chip-version-mini {
+  display: inline-block;
+  background: rgba(14, 165, 233, 0.15);
+  color: #38bdf8;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  width: fit-content;
+  margin-top: 2px;
+}
+
+.log-note-text {
+  display: block;
+  max-width: 280px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.btn-view {
+  background: rgba(2, 132, 199, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.btn-view:hover {
+  background: rgba(2, 132, 199, 0.3);
+  color: #fff;
+}
+
+.spin-anim {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 </style>

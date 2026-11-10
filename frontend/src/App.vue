@@ -10,6 +10,7 @@ import AuthModal from './components/AuthModal.vue';
 import { useWilayahStore } from './stores/wilayahStore';
 import { useLayerStore } from './stores/layerStore';
 import { useAuthStore } from './stores/authStore';
+import { sigApi } from './services/api';
 
 type ActiveView = 'geoportal' | 'dashboard';
 const currentView = ref<ActiveView>('geoportal');
@@ -33,6 +34,7 @@ function handleLoginSuccess() {
 }
 
 onMounted(async () => {
+  sigApi.trackVisitor({ page: 'geoportal_map' }).catch(() => {});
   authStore.initFromStorage();
   await wilayahStore.init();
   await layerStore.loadCategories();
