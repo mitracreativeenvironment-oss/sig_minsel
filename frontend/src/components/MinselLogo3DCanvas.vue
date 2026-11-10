@@ -111,9 +111,9 @@ function initThreeScene() {
   scene.background = new THREE.Color(0x060c1d); // Deep celestial midnight navy
   scene.fog = new THREE.FogExp2(0x060c1d, 0.014);
 
-  // 3. Perspective Camera
+  // 3. Perspective Camera (Responsive aspect-ratio framing)
   camera = new THREE.PerspectiveCamera(46, width / height, 0.5, 400);
-  camera.position.set(0, 0, 38);
+  adjustCameraForAspect(width, height);
   camera.lookAt(0, 0, 0);
 
   // 4. Studio Lighting Rig
@@ -440,13 +440,32 @@ function handleMouseMove(e: MouseEvent) {
   mouseY.value = (e.clientY / window.innerHeight) * 2 - 1;
 }
 
+function adjustCameraForAspect(width: number, height: number) {
+  if (!camera) return;
+  const aspect = width / height;
+  camera.aspect = aspect;
+  if (aspect < 0.75) {
+    // Mobile Portrait
+    camera.fov = 58;
+    camera.position.z = 46;
+  } else if (aspect < 1.15) {
+    // Tablet / Square
+    camera.fov = 50;
+    camera.position.z = 42;
+  } else {
+    // Desktop Landscape
+    camera.fov = 46;
+    camera.position.z = 38;
+  }
+  camera.updateProjectionMatrix();
+}
+
 function handleResize() {
   if (!canvasContainer.value || !renderer || !camera) return;
   const width = canvasContainer.value.clientWidth;
   const height = canvasContainer.value.clientHeight;
 
-  camera.aspect = width / height;
-  camera.updateProjectionMatrix();
+  adjustCameraForAspect(width, height);
   renderer.setSize(width, height);
 }
 
@@ -603,5 +622,26 @@ onBeforeUnmount(() => {
 
 .hud-sep {
   color: #475569;
+}
+
+@media (max-width: 640px) {
+  .hud-phase-tracker {
+    bottom: 56px;
+    right: 14px;
+    left: 14px;
+    align-items: center;
+  }
+  .hud-phase-pill {
+    font-size: 10px;
+    padding: 4px 10px;
+  }
+  .hud-phase-desc {
+    text-align: center;
+    font-size: 10px;
+    max-width: 100%;
+  }
+  .hud-meta {
+    font-size: 9px;
+  }
 }
 </style>
