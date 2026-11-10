@@ -4,11 +4,22 @@ import { Layers, Map as MapIcon, Hospital, Landmark, Trees, ShieldAlert, Check }
 
 const layerStore = useLayerStore();
 
-const basemapOptions: { id: BasemapType; label: string; desc: string }[] = [
-  { id: 'carto-positron', label: 'Positron (Light)', desc: 'Peta terang minimalis' },
-  { id: 'osm', label: 'OpenStreetMap', desc: 'Peta standar OSM' },
-  { id: 'carto-dark', label: 'Dark Matter', desc: 'Peta kontras gelap' },
-  { id: 'esri-satellite', label: 'Satelit Citra', desc: 'Citra satelit resolusi tinggi' },
+interface BasemapOption {
+  id: BasemapType;
+  label: string;
+  category: string;
+  badge?: string;
+}
+
+const basemapOptions: BasemapOption[] = [
+  { id: 'carto-positron', label: 'Positron (Light)', category: 'Minimalis', badge: 'Rekomendasi' },
+  { id: 'carto-voyager', label: 'Voyager (Lengkap)', category: 'Jalan & POI' },
+  { id: 'esri-street', label: 'Esri Street Poros', category: 'Jalan Nasional' },
+  { id: 'osm', label: 'OpenStreetMap', category: 'Komunitas OSM' },
+  { id: 'esri-topo', label: 'Esri Topografis', category: 'Relief & Kontur' },
+  { id: 'opentopo', label: 'OpenTopoMap', category: 'Garis Elevasi' },
+  { id: 'esri-satellite', label: 'Citra Satelit', category: 'Foto Udara' },
+  { id: 'carto-dark', label: 'Dark Matter', category: 'Mode Gelap' }
 ];
 
 const thematicLayers = [
@@ -22,11 +33,11 @@ const thematicLayers = [
 
 <template>
   <div class="layer-control-card">
-    <!-- Basemap Selector -->
+    <!-- Basemap Selector (8 Pilihan Lengkap & Free) -->
     <div class="control-section">
       <div class="section-title">
         <MapIcon :size="16" class="icon-section" />
-        <span>Peta Dasar (Basemap)</span>
+        <span>Peta Dasar Bebas Akses ({{ basemapOptions.length }} Basemap)</span>
       </div>
       <div class="basemap-grid">
         <button
@@ -35,7 +46,11 @@ const thematicLayers = [
           :class="['basemap-btn', { active: layerStore.activeBasemap === b.id }]"
           @click="layerStore.setBasemap(b.id)"
         >
-          <span class="btn-label">{{ b.label }}</span>
+          <div class="bm-info">
+            <span class="btn-label">{{ b.label }}</span>
+            <span class="btn-cat">{{ b.category }}</span>
+          </div>
+          <span v-if="b.badge" class="bm-badge">{{ b.badge }}</span>
           <Check v-if="layerStore.activeBasemap === b.id" :size="14" class="icon-check" />
         </button>
       </div>
@@ -59,8 +74,8 @@ const thematicLayers = [
             :checked="layerStore.isLayerActive(layer.kode)"
             @change="layerStore.toggleLayer(layer.kode)"
           />
-          <span class="color-dot" :style="{ backgroundColor: layer.color }"></span>
-          <span class="thematic-label">{{ layer.label }}</span>
+          <span class="color-badge" :style="{ backgroundColor: layer.color }"></span>
+          <span class="layer-name">{{ layer.label }}</span>
         </label>
       </div>
     </div>
@@ -71,14 +86,12 @@ const thematicLayers = [
 .layer-control-card {
   background: #ffffff;
   border-radius: 12px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   border: 1px solid #e2e8f0;
-  overflow: hidden;
-  font-family: inherit;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 16px;
 }
 
 .control-section {
@@ -92,8 +105,8 @@ const thematicLayers = [
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  font-weight: 600;
-  color: #0f172a;
+  font-weight: 700;
+  color: #1e293b;
 }
 
 .icon-section {
@@ -104,6 +117,17 @@ const thematicLayers = [
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.basemap-grid::-webkit-scrollbar {
+  width: 4px;
+}
+.basemap-grid::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 2px;
 }
 
 .basemap-btn {
@@ -111,30 +135,64 @@ const thematicLayers = [
   align-items: center;
   justify-content: space-between;
   padding: 8px 10px;
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-  font-size: 11px;
-  font-weight: 500;
-  color: #334155;
+  background: #f8fafc;
   cursor: pointer;
-  transition: all 0.2s;
+  text-align: left;
+  transition: all 0.2s ease;
+  position: relative;
 }
 
 .basemap-btn:hover {
   background: #f1f5f9;
-  border-color: #94a3b8;
+  border-color: #cbd5e1;
 }
 
 .basemap-btn.active {
   background: #eff6ff;
-  border-color: #2563eb;
+  border-color: #3b82f6;
   color: #1d4ed8;
   font-weight: 600;
 }
 
+.bm-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.btn-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.basemap-btn.active .btn-label {
+  color: #1d4ed8;
+}
+
+.btn-cat {
+  font-size: 9px;
+  color: #64748b;
+}
+
+.bm-badge {
+  font-size: 8px;
+  background: #dbeafe;
+  color: #1e40af;
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
 .icon-check {
   color: #2563eb;
+  flex-shrink: 0;
+  margin-left: 4px;
 }
 
 .thematic-list {
@@ -147,13 +205,12 @@ const thematicLayers = [
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px;
-  background: #f8fafc;
-  border-radius: 8px;
-  border: 1px solid #f1f5f9;
+  font-size: 12px;
+  color: #334155;
   cursor: pointer;
-  transition: background 0.2s;
-  user-select: none;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: background 0.15s ease;
 }
 
 .thematic-item:hover {
@@ -167,17 +224,15 @@ const thematicLayers = [
   cursor: pointer;
 }
 
-.color-dot {
+.color-badge {
   width: 10px;
   height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
-.thematic-label {
-  font-size: 12px;
+.layer-name {
+  flex: 1;
   font-weight: 500;
-  color: #1e293b;
 }
 </style>
-

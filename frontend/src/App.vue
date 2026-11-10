@@ -4,7 +4,7 @@ import TopNavbar from './components/TopNavbar.vue';
 import MapContainer from './components/MapContainer.vue';
 import CascadingWilayahFilter from './components/CascadingWilayahFilter.vue';
 import LayerControlPanel from './components/LayerControlPanel.vue';
-import StatSummaryBar from './components/StatSummaryBar.vue';
+import UserLocationBar from './components/UserLocationBar.vue';
 import LandingPage from './views/LandingPage.vue';
 import DashboardView from './views/DashboardView.vue';
 import AuthModal from './components/AuthModal.vue';
@@ -67,9 +67,9 @@ onMounted(async () => {
           <LayerControlPanel />
         </aside>
 
-        <!-- Floating Stat Bar Bawah -->
-        <div class="floating-stat-bar">
-          <StatSummaryBar />
+        <!-- Floating Bar Bawah: Toggle Lokasi Saya (On/Off) -->
+        <div class="floating-location-bar">
+          <UserLocationBar />
         </div>
       </main>
     </div>
@@ -149,7 +149,7 @@ body {
   border-radius: 4px;
 }
 
-.floating-stat-bar {
+.floating-location-bar {
   position: absolute;
   bottom: 24px;
   left: 50%;

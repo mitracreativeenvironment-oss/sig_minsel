@@ -2,7 +2,15 @@ import { defineStore } from 'pinia';
 import { sigApi } from '../services/api';
 import type { KategoriLayer } from '../types';
 
-export type BasemapType = 'osm' | 'carto-positron' | 'carto-dark' | 'esri-satellite';
+export type BasemapType =
+  | 'carto-positron'
+  | 'carto-dark'
+  | 'carto-voyager'
+  | 'osm'
+  | 'esri-topo'
+  | 'esri-street'
+  | 'esri-satellite'
+  | 'opentopo';
 
 export const useLayerStore = defineStore('layer', {
   state: () => ({
@@ -45,4 +53,3 @@ export const useLayerStore = defineStore('layer', {
     }
   }
 });
-

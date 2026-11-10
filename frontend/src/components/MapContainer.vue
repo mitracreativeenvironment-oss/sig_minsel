@@ -4,18 +4,31 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useWilayahStore } from '../stores/wilayahStore';
 import { useLayerStore } from '../stores/layerStore';
+import { useLocationStore } from '../stores/locationStore';
 import { sigApi } from '../services/api';
 import type { ObjekSpasialProperties } from '../types';
 
 const mapContainer = ref<HTMLDivElement | null>(null);
 let map: maplibregl.Map | null = null;
 let popup: maplibregl.Popup | null = null;
+let userLocationMarker: maplibregl.Marker | null = null;
 
 const wilayahStore = useWilayahStore();
 const layerStore = useLayerStore();
+const locationStore = useLocationStore();
 
-// Basemap URL Definitions
+// 8 Peta Dasar Bebas Akses (Free, Lengkap, dan Stabil)
 const basemapStyles: Record<string, string | maplibregl.StyleSpecification> = {
+  // 1. Carto Positron (Peta Terang Bersih - Ideal untuk Poligon Wilayah)
+  'carto-positron': 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+
+  // 2. Carto Dark Matter (Peta Gelap Kontras Tinggi)
+  'carto-dark': 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+
+  // 3. Carto Voyager (Peta Lengkap Jalan, Bangunan & Landmark)
+  'carto-voyager': 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
+
+  // 4. OpenStreetMap Standard (Peta Komunitas Global Lengkap)
   'osm': {
     version: 8,
     sources: {
@@ -28,8 +41,36 @@ const basemapStyles: Record<string, string | maplibregl.StyleSpecification> = {
     },
     layers: [{ id: 'osm-layer', type: 'raster', source: 'osm-raster', minzoom: 0, maxzoom: 19 }]
   },
-  'carto-positron': 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
-  'carto-dark': 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+
+  // 5. Esri World Topographic (Kontur & Relief Elevasi Topografi Minsel)
+  'esri-topo': {
+    version: 8,
+    sources: {
+      'esri-topo-source': {
+        type: 'raster',
+        tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}'],
+        tileSize: 256,
+        attribution: '&copy; Esri World Topographic'
+      }
+    },
+    layers: [{ id: 'esri-topo-layer', type: 'raster', source: 'esri-topo-source', minzoom: 0, maxzoom: 19 }]
+  },
+
+  // 6. Esri World Street Map (Jaringan Jalan Nasional Trans Sulawesi)
+  'esri-street': {
+    version: 8,
+    sources: {
+      'esri-street-source': {
+        type: 'raster',
+        tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'],
+        tileSize: 256,
+        attribution: '&copy; Esri World Street Map'
+      }
+    },
+    layers: [{ id: 'esri-street-layer', type: 'raster', source: 'esri-street-source', minzoom: 0, maxzoom: 19 }]
+  },
+
+  // 7. Esri World Imagery (Citra Satelit Foto Udara Resolusi Tinggi)
   'esri-satellite': {
     version: 8,
     sources: {
@@ -41,6 +82,20 @@ const basemapStyles: Record<string, string | maplibregl.StyleSpecification> = {
       }
     },
     layers: [{ id: 'esri-layer', type: 'raster', source: 'esri-sat', minzoom: 0, maxzoom: 19 }]
+  },
+
+  // 8. OpenTopoMap (Kontur Elevasi Terbuka)
+  'opentopo': {
+    version: 8,
+    sources: {
+      'opentopo-source': {
+        type: 'raster',
+        tiles: ['https://tile.opentopomap.org/{z}/{x}/{y}.png'],
+        tileSize: 256,
+        attribution: '&copy; OpenTopoMap contributors'
+      }
+    },
+    layers: [{ id: 'opentopo-layer', type: 'raster', source: 'opentopo-source', minzoom: 0, maxzoom: 17 }]
   }
 };
 
@@ -69,6 +124,7 @@ const initMap = () => {
 
   map.on('load', async () => {
     await loadSpatialData();
+    syncUserLocationMarker();
   });
 };
 
@@ -145,7 +201,6 @@ const reloadThematicMarkers = async () => {
       desa_id: wilayahStore.selectedDesaId || undefined,
     };
 
-    // Ambil layer kesehatan & pemerintahan sebagai sampel awal
     const layerData = await sigApi.getLayer('kesehatan', filters);
 
     if (map.getSource('thematic-source')) {
@@ -200,6 +255,72 @@ const reloadThematicMarkers = async () => {
   }
 };
 
+// ========================================================
+// MANAJEMEN MARKER LOKASI SAYA (ON / OFF)
+// ========================================================
+function syncUserLocationMarker() {
+  if (!map) return;
+
+  if (locationStore.isLocationActive && locationStore.currentCoords) {
+    const { lng, lat, accuracy } = locationStore.currentCoords;
+
+    if (!userLocationMarker) {
+      // Buat elemen DOM kustom untuk marker lokasi berdenyut (pulsing GPS radar)
+      const el = document.createElement('div');
+      el.className = 'custom-user-gps-marker';
+      el.innerHTML = `
+        <div class="gps-pulse-ring"></div>
+        <div class="gps-dot"></div>
+      `;
+
+      const locPopup = new maplibregl.Popup({ offset: 16, closeButton: false }).setHTML(`
+        <div style="font-family: inherit; font-size: 12px; font-weight: 600; color: #0f172a; padding: 2px;">
+          📍 Lokasi Anda Saat Ini<br>
+          <span style="font-size: 10px; color: #64748b; font-weight: normal;">
+            Akurasi: ±${accuracy}m
+          </span>
+        </div>
+      `);
+
+      userLocationMarker = new maplibregl.Marker({ element: el })
+        .setLngLat([lng, lat])
+        .setPopup(locPopup)
+        .addTo(map);
+    } else {
+      userLocationMarker.setLngLat([lng, lat]);
+    }
+  } else {
+    // Jika OFF: Hapus marker dari layar
+    if (userLocationMarker) {
+      userLocationMarker.remove();
+      userLocationMarker = null;
+    }
+  }
+}
+
+// Watcher status dan koordinat lokasi pengguna
+watch(
+  () => [locationStore.isLocationActive, locationStore.currentCoords],
+  () => {
+    syncUserLocationMarker();
+  },
+  { deep: true }
+);
+
+// Watcher permintaan pusatkan ke lokasi saya
+watch(
+  () => locationStore.centerRequestTrigger,
+  () => {
+    if (!map || !locationStore.currentCoords) return;
+    map.flyTo({
+      center: [locationStore.currentCoords.lng, locationStore.currentCoords.lat],
+      zoom: 14,
+      essential: true,
+      speed: 1.2
+    });
+  }
+);
+
 // Watcher pergantian basemap
 watch(() => layerStore.activeBasemap, (newBasemap) => {
   if (!map) return;
@@ -207,6 +328,7 @@ watch(() => layerStore.activeBasemap, (newBasemap) => {
   map.setStyle(style);
   map.once('style.load', () => {
     loadSpatialData();
+    syncUserLocationMarker();
   });
 });
 
@@ -238,6 +360,10 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  if (userLocationMarker) {
+    userLocationMarker.remove();
+    userLocationMarker = null;
+  }
   if (map) {
     map.remove();
     map = null;
@@ -264,3 +390,51 @@ onBeforeUnmount(() => {
 }
 </style>
 
+<!-- Global Style untuk Custom GPS Marker Element di MapLibre -->
+<style>
+.custom-user-gps-marker {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+}
+
+.gps-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #0284c7;
+  border: 2.5px solid #ffffff;
+  box-shadow: 0 0 10px rgba(2, 132, 199, 0.7);
+  z-index: 2;
+}
+
+.gps-pulse-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(56, 189, 248, 0.35);
+  border: 1px solid rgba(56, 189, 248, 0.8);
+  animation: gpsPulse 2s infinite ease-out;
+  z-index: 1;
+}
+
+@keyframes gpsPulse {
+  0% {
+    transform: translate(-50%, -50%) scale(0.6);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(2.2);
+    opacity: 0;
+  }
+}
+</style>
