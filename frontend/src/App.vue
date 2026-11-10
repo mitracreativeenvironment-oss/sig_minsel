@@ -1,41 +1,91 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import TopNavbar from './components/TopNavbar.vue';
 import MapContainer from './components/MapContainer.vue';
 import CascadingWilayahFilter from './components/CascadingWilayahFilter.vue';
 import LayerControlPanel from './components/LayerControlPanel.vue';
 import StatSummaryBar from './components/StatSummaryBar.vue';
+import LandingPage from './views/LandingPage.vue';
+import DashboardView from './views/DashboardView.vue';
+import AuthModal from './components/AuthModal.vue';
 import { useWilayahStore } from './stores/wilayahStore';
 import { useLayerStore } from './stores/layerStore';
+import { useAuthStore } from './stores/authStore';
+
+type ActiveView = 'landing' | 'geoportal' | 'dashboard';
+const currentView = ref<ActiveView>('landing');
+const showAuthModal = ref(false);
 
 const wilayahStore = useWilayahStore();
 const layerStore = useLayerStore();
+const authStore = useAuthStore();
+
+function handleNavigate(view: ActiveView) {
+  if (view === 'dashboard' && !authStore.isAuthenticated) {
+    showAuthModal.value = true;
+    return;
+  }
+  currentView.value = view;
+}
+
+function handleLoginSuccess() {
+  showAuthModal.value = false;
+  currentView.value = 'dashboard';
+}
 
 onMounted(async () => {
+  authStore.initFromStorage();
   await wilayahStore.init();
   await layerStore.loadCategories();
+  await authStore.loadRoles();
 });
 </script>
 
 <template>
   <div class="gis-app">
-    <TopNavbar />
+    <!-- VIEW 1: LANDING PAGE 1 HALAMAN FULL DENGAN THREE.JS SCROLLYTELLING -->
+    <LandingPage
+      v-if="currentView === 'landing'"
+      @navigate="handleNavigate"
+      @open-login="showAuthModal = true"
+    />
 
-    <main class="gis-body">
-      <!-- Peta Layar Penuh -->
-      <MapContainer />
+    <!-- VIEW 2: GEOPORTAL PETA INTERAKTIF MAPLIBRE -->
+    <div v-else-if="currentView === 'geoportal'" class="geoportal-layout">
+      <TopNavbar
+        @navigate="handleNavigate"
+        @open-login="showAuthModal = true"
+      />
 
-      <!-- Floating Sidebar Kiri: Filter Hierarki & Layer Control -->
-      <aside class="floating-sidebar">
-        <CascadingWilayahFilter />
-        <LayerControlPanel />
-      </aside>
+      <main class="gis-body">
+        <!-- Peta Layar Penuh -->
+        <MapContainer />
 
-      <!-- Floating Stat Bar Bawah -->
-      <div class="floating-stat-bar">
-        <StatSummaryBar />
-      </div>
-    </main>
+        <!-- Floating Sidebar Kiri: Filter Hierarki 17 Kecamatan & Layer Control -->
+        <aside class="floating-sidebar">
+          <CascadingWilayahFilter />
+          <LayerControlPanel />
+        </aside>
+
+        <!-- Floating Stat Bar Bawah -->
+        <div class="floating-stat-bar">
+          <StatSummaryBar />
+        </div>
+      </main>
+    </div>
+
+    <!-- VIEW 3: DASHBOARD TATA KELOLA SPASIAL 8 ROLE -->
+    <DashboardView
+      v-else-if="currentView === 'dashboard'"
+      @navigate="handleNavigate"
+    />
+
+    <!-- MODAL AUTENTIKASI 8 ROLE -->
+    <AuthModal
+      v-if="showAuthModal"
+      @close="showAuthModal = false"
+      @success="handleLoginSuccess"
+    />
   </div>
 </template>
 
@@ -50,15 +100,22 @@ onMounted(async () => {
 body {
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   color: #0f172a;
-  background-color: #f8fafc;
+  background-color: #0b132b;
   overflow: hidden;
 }
 
 .gis-app {
-  display: flex;
-  flex-direction: column;
   width: 100vw;
   height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+.geoportal-layout {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
 }
 
 .gis-body {
@@ -100,11 +157,10 @@ body {
   z-index: 10;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 640px) {
   .floating-sidebar {
     width: calc(100vw - 32px);
-    max-height: 50vh;
+    max-height: 40vh;
   }
 }
 </style>
-

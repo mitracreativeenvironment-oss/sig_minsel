@@ -5,7 +5,13 @@ import type {
   DesaProperties,
   ObjekSpasialProperties,
   KategoriLayer,
-  HierarchyNode
+  HierarchyNode,
+  UserRoleInfo,
+  UserProfile,
+  WorkflowState,
+  DatasetItem,
+  DataDasarVersion,
+  ShpValidationReport
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/spasials';
@@ -20,6 +26,10 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   const headers = new Headers(options.headers || {});
   headers.set('X-API-TOKEN', API_TOKEN);
   headers.set('Accept', 'application/json, application/geo+json');
+
+  if (options.body && typeof options.body === 'string') {
+    headers.set('Content-Type', 'application/json');
+  }
 
   const config: RequestInit = {
     ...options,
@@ -107,5 +117,98 @@ export const sigApi = {
     const queryStr = params.toString() ? `?${params.toString()}` : '';
     return request(`/layer/${kategoriKode}${queryStr}`);
   },
-};
 
+  // ==========================================
+  // AUTENTIKASI & 8 ROLE
+  // ==========================================
+
+  async getRoles(): Promise<{ data: UserRoleInfo[] }> {
+    return request('/auth/roles');
+  },
+
+  async login(payload: { username?: string; password?: string; role?: string }): Promise<{ data: UserProfile; message: string }> {
+    return request('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  // ==========================================
+  // WORKFLOW PERSETUJUAN TERPUSAT (12 STATUS)
+  // ==========================================
+
+  async getWorkflowStates(): Promise<{ data: WorkflowState[] }> {
+    return request('/workflow/states');
+  },
+
+  async getWorkflowDatasets(filters: { status?: string; opd?: string } = {}): Promise<{
+    data: {
+      total: number;
+      datasets: DatasetItem[];
+      workflow_summary: {
+        total_datasets: number;
+        in_draft: number;
+        in_validation: number;
+        in_approval: number;
+        published: number;
+      };
+    };
+  }> {
+    const params = new URLSearchParams();
+    if (filters.status) params.set('status', filters.status);
+    if (filters.opd) params.set('opd', filters.opd);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return request(`/workflow/datasets${query}`);
+  },
+
+  async transitionWorkflow(payload: {
+    dataset_id: number;
+    status: string;
+    catatan?: string;
+    actor_role?: string;
+  }): Promise<{ data: any; message: string }> {
+    return request('/workflow/transition', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  // ==========================================
+  // MODUL SUPERADMIN: DATA DASAR GEOSPASIAL (SHP)
+  // ==========================================
+
+  async getDataDasar(): Promise<{
+    data: {
+      versions: DataDasarVersion[];
+      active_versions: Record<string, string>;
+      crs_wajib: string;
+    };
+  }> {
+    return request('/admin/data-dasar');
+  },
+
+  async uploadDataDasar(payload: {
+    tipe_data: string;
+    sumber_resmi?: string;
+    tahun_referensi?: number;
+    nama_file?: string;
+  }): Promise<{
+    data: {
+      version_record: DataDasarVersion;
+      validation_report: ShpValidationReport;
+    };
+    message: string;
+  }> {
+    return request('/admin/data-dasar/upload', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  async activateDataDasar(id: number): Promise<{ data: DataDasarVersion; message: string }> {
+    return request('/admin/data-dasar/activate', {
+      method: 'POST',
+      body: JSON.stringify({ id })
+    });
+  }
+};

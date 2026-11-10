@@ -1,13 +1,20 @@
 <script setup lang="ts">
 import { useWilayahStore } from '../stores/wilayahStore';
-import { ShieldCheck, Compass } from 'lucide-vue-next';
+import { useAuthStore } from '../stores/authStore';
+import { ShieldCheck, Compass, LayoutDashboard, Globe } from 'lucide-vue-next';
+
+const emit = defineEmits<{
+  (e: 'navigate', view: 'landing' | 'geoportal' | 'dashboard'): void;
+  (e: 'open-login'): void;
+}>();
 
 const wilayahStore = useWilayahStore();
+const authStore = useAuthStore();
 </script>
 
 <template>
   <header class="top-nav">
-    <div class="nav-brand">
+    <div class="nav-brand" @click="emit('navigate', 'landing')">
       <div class="brand-icon">
         <Compass :size="22" />
       </div>
@@ -15,6 +22,26 @@ const wilayahStore = useWilayahStore();
         <h1 class="brand-title">GEOMINSEL</h1>
         <p class="brand-subtitle">Pemerintah Kabupaten Minahasa Selatan &bull; Geoportal & Pengelolaan Data</p>
       </div>
+    </div>
+
+    <!-- Navigation Tab Buttons -->
+    <div class="nav-middle">
+      <button class="nav-tab-btn" @click="emit('navigate', 'landing')">
+        <Globe :size="15" />
+        <span>Halaman Utama</span>
+      </button>
+      <button class="nav-tab-btn active" @click="emit('navigate', 'geoportal')">
+        <Compass :size="15" />
+        <span>Peta Interaktif</span>
+      </button>
+      <button
+        v-if="authStore.isAuthenticated"
+        class="nav-tab-btn"
+        @click="emit('navigate', 'dashboard')"
+      >
+        <LayoutDashboard :size="15" />
+        <span>Dashboard ({{ authStore.roleLabel }})</span>
+      </button>
     </div>
 
     <div class="nav-status">
@@ -29,6 +56,24 @@ const wilayahStore = useWilayahStore();
         <ShieldCheck :size="16" class="icon-shield" />
         <span>API Token Valid</span>
       </div>
+
+      <!-- Auth Action Button -->
+      <button
+        v-if="!authStore.isAuthenticated"
+        class="btn-login-nav"
+        @click="emit('open-login')"
+      >
+        <ShieldCheck :size="15" />
+        <span>Masuk OPD</span>
+      </button>
+      <button
+        v-else
+        class="btn-dash-nav"
+        @click="emit('navigate', 'dashboard')"
+      >
+        <LayoutDashboard :size="15" />
+        <span>Buka Dashboard</span>
+      </button>
     </div>
   </header>
 </template>
@@ -50,6 +95,7 @@ const wilayahStore = useWilayahStore();
   display: flex;
   align-items: center;
   gap: 12px;
+  cursor: pointer;
 }
 
 .brand-icon {
@@ -81,6 +127,40 @@ const wilayahStore = useWilayahStore();
   margin: 0;
   font-size: 11px;
   color: #64748b;
+}
+
+.nav-middle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.nav-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.nav-tab-btn:hover {
+  color: #0f172a;
+}
+
+.nav-tab-btn.active {
+  background: #ffffff;
+  color: #2563eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .nav-status {
@@ -126,10 +206,29 @@ const wilayahStore = useWilayahStore();
   color: #059669;
 }
 
-@media (max-width: 768px) {
-  .badge-scope {
+.btn-login-nav, .btn-dash-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.3);
+  transition: all 0.15s ease;
+}
+
+.btn-login-nav:hover, .btn-dash-nav:hover {
+  background: #1d4ed8;
+}
+
+@media (max-width: 900px) {
+  .nav-middle, .badge-scope {
     display: none;
   }
 }
 </style>
-

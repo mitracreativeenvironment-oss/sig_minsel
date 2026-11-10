@@ -21,6 +21,9 @@ $routes->group('spasials', static function ($routes) {
     // Health check & Token Verification / Handshake
     $routes->get('ping', 'Api\AuthController::ping');
     $routes->get('auth/verify', 'Api\AuthController::verify');
+    $routes->get('auth/roles', 'Api\AuthController::roles');
+    $routes->post('auth/login', 'Api\AuthController::login');
+    $routes->get('auth/me', 'Api\AuthController::me');
 
     // Hierarki Wilayah Administrasi (Kabupaten -> Kecamatan -> Desa)
     $routes->get('wilayah/kabupaten', 'Api\WilayahController::kabupaten');
@@ -35,4 +38,14 @@ $routes->group('spasials', static function ($routes) {
     $routes->get('layer/kategori', 'Api\SpasialController::kategori');
     $routes->get('layer/(:segment)', 'Api\SpasialController::getLayer/$1');
     $routes->get('objek/(:num)', 'Api\SpasialController::getObjek/$1');
+
+    // Alur Persetujuan Terpusat (Workflow 12 Status Fase 2)
+    $routes->get('workflow/states', 'Api\WorkflowController::states');
+    $routes->get('workflow/datasets', 'Api\WorkflowController::datasets');
+    $routes->post('workflow/transition', 'Api\WorkflowController::transition');
+
+    // Modul Superadmin: Data Dasar Geospasial (Upload & Validasi SHP)
+    $routes->get('admin/data-dasar', 'Api\WorkflowController::dataDasar');
+    $routes->post('admin/data-dasar/upload', 'Api\WorkflowController::uploadDataDasar');
+    $routes->post('admin/data-dasar/activate', 'Api\WorkflowController::activateDataDasar');
 });
