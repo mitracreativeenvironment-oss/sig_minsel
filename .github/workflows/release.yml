@@ -7,7 +7,7 @@ on:
 
 jobs:
   release:
-    name: Create GitHub Release
+    name: Publikasi GitHub Release & Catatan Perubahan
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -17,10 +17,33 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Generate Release Notes & Create Release
+      - name: Ekstrak Catatan Perubahan dari CHANGELOG
+        id: extract_changelog
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "Target Version: $VERSION"
+          
+          # Ekstrak bagian changelog untuk versi ini
+          CHANGES=$(awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { flag=1; next }
+            $0 ~ "^## \\[" && flag { exit }
+            flag { print }
+          ' CHANGELOG.md | sed -e :a -e '/^\n*$/{$d;N;};/\n$/ba')
+          
+          if [ -z "$CHANGES" ]; then
+            CHANGES="Rilis versi $GITHUB_REF_NAME untuk WebGIS Kabupaten Minahasa Selatan."
+          fi
+          
+          # Simpan ke file sementara untuk input multiline
+          echo "$CHANGES" > release_notes.md
+          echo "Release Notes Preview:"
+          cat release_notes.md
+
+      - name: Publikasikan GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           name: Release ${{ github.ref_name }}
+          body_path: release_notes.md
           generate_release_notes: true
           draft: false
           prerelease: false

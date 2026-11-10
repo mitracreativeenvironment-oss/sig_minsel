@@ -1,0 +1,53 @@
+# Konfigurasi Pengelompokan Keterangan Perubahan Otomatis di GitHub Release
+changelog:
+  exclude:
+    labels:
+      - ignore
+      - duplicate
+    authors:
+      - dependabot[bot]
+  categories:
+    - title: "🚀 Fitur Baru"
+      labels:
+        - "enhancement"
+        - "feature"
+      keywords:
+        - "feat:"
+        - "feat("
+    - title: "🗺️ Data & Layer Spasial (GIS)"
+      labels:
+        - "gis"
+        - "spatial"
+      keywords:
+        - "gis:"
+        - "map:"
+        - "spatial:"
+        - "layer:"
+    - title: "🐛 Perbaikan Bug"
+      labels:
+        - "bug"
+        - "fix"
+      keywords:
+        - "fix:"
+        - "fix("
+    - title: "⚡ Optimasi Performa & Query"
+      labels:
+        - "performance"
+      keywords:
+        - "perf:"
+        - "perf("
+    - title: "📝 Dokumentasi & Panduan"
+      labels:
+        - "documentation"
+      keywords:
+        - "docs:"
+        - "docs("
+    - title: "🔧 Pemeliharaan & Dependensi"
+      labels:
+        - "chore"
+        - "maintenance"
+      keywords:
+        - "chore:"
+        - "refactor:"
+        - "ci:"
+        - "style:"
