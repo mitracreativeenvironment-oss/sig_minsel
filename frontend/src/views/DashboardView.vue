@@ -159,7 +159,13 @@ onMounted(() => {
       <div class="topbar-left">
         <div class="dash-brand" @click="emit('navigate', 'geoportal')">
           <div class="dash-logo">
-            <img src="/favicon.svg" alt="Logo Minahasa Selatan" width="24" height="24" />
+            <img
+              src="/images/Lambang_Kabupaten_Minahasa_Selatan.png"
+              alt="Lambang Kabupaten Minahasa Selatan"
+              class="dash-logo-img"
+              width="24"
+              height="30"
+            />
           </div>
           <div>
             <h1 class="dash-title">GeoMinsel Dashboard</h1>
@@ -869,14 +875,23 @@ onMounted(() => {
 }
 
 .dash-logo {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
-  color: #ffffff;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  border: 1px solid rgba(245, 158, 11, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 3px;
+  flex-shrink: 0;
+}
+
+.dash-logo-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
 }
 
 .dash-title {

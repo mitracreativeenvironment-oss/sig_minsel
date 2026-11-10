@@ -16,7 +16,13 @@ const authStore = useAuthStore();
   <header class="top-nav">
     <div class="nav-brand" @click="emit('navigate', 'geoportal')">
       <div class="brand-icon">
-        <img src="/favicon.svg" alt="Logo Minahasa Selatan" width="28" height="28" />
+        <img
+          src="/images/Lambang_Kabupaten_Minahasa_Selatan.png"
+          alt="Lambang Resmi Kabupaten Minahasa Selatan"
+          class="brand-img"
+          width="30"
+          height="38"
+        />
       </div>
       <div class="brand-text">
         <h1 class="brand-title">GEOMINSEL</h1>
@@ -95,15 +101,30 @@ const authStore = useAuthStore();
 }
 
 .brand-icon {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 10px;
-  background: #0f172a;
-  border: 1px solid rgba(245, 158, 11, 0.4);
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  border: 1px solid rgba(245, 158, 11, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  padding: 3px;
+  flex-shrink: 0;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.nav-brand:hover .brand-icon {
+  transform: scale(1.04);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+}
+
+.brand-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
 }
 
 .brand-text {

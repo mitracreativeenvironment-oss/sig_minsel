@@ -71,7 +71,13 @@ async function handleLogin() {
 
       <div class="auth-header">
         <div class="auth-emblem">
-          <img src="/favicon.svg" alt="Logo Minahasa Selatan" width="32" height="32" />
+          <img
+            src="/images/Lambang_Kabupaten_Minahasa_Selatan.png"
+            alt="Lambang Resmi Kabupaten Minahasa Selatan"
+            class="auth-emblem-img"
+            width="34"
+            height="42"
+          />
         </div>
         <h2 class="auth-title">Autentikasi Pengguna GeoMinsel</h2>
         <p class="auth-subtitle">
@@ -210,16 +216,24 @@ async function handleLogin() {
 }
 
 .auth-emblem {
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
   border-radius: 12px;
-  background: rgba(2, 132, 199, 0.2);
-  border: 1px solid rgba(2, 132, 199, 0.4);
-  color: #38bdf8;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  border: 1px solid rgba(245, 158, 11, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 12px;
+  padding: 4px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+.auth-emblem-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
 }
 
 .auth-title {

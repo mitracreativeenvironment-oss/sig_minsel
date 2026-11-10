@@ -1,5 +1,7 @@
 {
-  "name": "Logo GeoMinsel Minahasa Selatan",
+  "name": "GeoMinsel — Sistem Informasi Geografis Kabupaten Minahasa Selatan",
+  "short_name": "GeoMinsel",
+  "description": "Portal Geospasial Resmi Pemerintah Kabupaten Minahasa Selatan",
   "icons": [
     {
       "src": "/icon-192.png",
@@ -12,10 +14,9 @@
       "type": "image/png"
     },
     {
-      "src": "/maskable-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
     }
   ],
   "theme_color": "#0b132b",
