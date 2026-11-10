@@ -113,3 +113,4 @@ Superadmin mengelola layer acuan resmi:
 - **Hierarki Kode Kemendagri**: Verifikasi hubungan kode wilayah (`71.05` &rarr; `71.05.xx` &rarr; `71.05.xx.xxxx`).
 - **Pengelolaan Versi**: Menyimpan riwayat versi lama dan mengarsipkan data digantikan.
 - **Aturan Batasan OPD**: OPD dilarang mengubah batas administrasi dasar; seluruh data OPD wajib menginduk pada data dasar resmi ini.
+

@@ -8,7 +8,7 @@ import type {
   HierarchyNode
 } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/spasials';
 const API_TOKEN = import.meta.env.VITE_API_TOKEN || 'sig_minsel_sec_2026_m1n53l_k4b';
 
 /**
@@ -89,7 +89,7 @@ export const sigApi = {
    * Daftar Kategori Layer Tematik
    */
   async getKategoriLayer(): Promise<{ data: KategoriLayer[] }> {
-    return request('/spasial/kategori');
+    return request('/layer/kategori');
   },
 
   /**
@@ -105,7 +105,7 @@ export const sigApi = {
     if (filters.bbox) params.set('bbox', filters.bbox);
 
     const queryStr = params.toString() ? `?${params.toString()}` : '';
-    return request(`/spasial/layer/${kategoriKode}${queryStr}`);
+    return request(`/layer/${kategoriKode}${queryStr}`);
   },
 };
 

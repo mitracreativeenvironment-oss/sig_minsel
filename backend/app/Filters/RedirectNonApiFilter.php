@@ -7,11 +7,12 @@ use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
 
 /**
- * Filter Pengalihan Akses Non-API ke Frontend
+ * Filter Pengalihan Akses Non-Spasials ke Frontend
  * 
- * Backend CI4 murni beroperasi sebagai Full API.
+ * Backend CI4 murni beroperasi sebagai Layanan Data Spasial.
+ * Kata kunci resmi adalah 'spasials'.
  * Jika pengguna/browser mengakses backend secara langsung (root, index.php, dll)
- * tanpa rute /api, maka langsung dialihkan ke URL frontend resmi.
+ * tanpa rute 'spasials', maka langsung dialihkan ke URL frontend resmi.
  */
 class RedirectNonApiFilter implements FilterInterface
 {
@@ -20,8 +21,10 @@ class RedirectNonApiFilter implements FilterInterface
         $uri = $request->getUri();
         $path = trim($uri->getPath(), '/');
 
-        // Kecualikan rute API
-        if (str_starts_with($path, 'api') || $path === 'api') {
+        $prefix = env('app.apiPrefix', config('App')->apiPrefix ?? 'spasials');
+
+        // Kecualikan rute data spasials
+        if (str_starts_with($path, $prefix) || $path === $prefix) {
             return;
         }
 
@@ -37,4 +40,3 @@ class RedirectNonApiFilter implements FilterInterface
         // Tidak diperlukan aksi setelah request
     }
 }
-

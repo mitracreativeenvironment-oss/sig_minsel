@@ -22,7 +22,7 @@
 |---|---|---|
 | **Frontend** | Vue.js 3 (Composition API, Vite, Pinia) | Dipakai |
 | **Map Renderer** | MapLibre GL JS | Dipakai (Hardware-accelerated WebGL) |
-| **Backend** | CodeIgniter 4 REST API | Dipakai |
+| **Backend** | CodeIgniter 4 REST Service | Dipakai (Endpoint resmi: `/spasials/...`) |
 | **Database** | MySQL Spatial (SRID 4326 WGS84) | Dipakai (Spatial Index, `ST_AsGeoJSON`) |
 | **GIS Desktop** | QGIS Desktop | Dipakai (Digitasi, validasi data spasial) |
 | **Web Server** | Apache / cPanel | Mengikuti hosting |

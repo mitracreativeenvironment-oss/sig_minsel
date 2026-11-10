@@ -11,6 +11,13 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 
 ---
 
+## [0.4.1] - 2026-11-10
+
+### Keterangan Perubahan
+- Refaktor endpoint: gunakan kata kunci resmi 'spasials' menggantikan '/api/v1'
+
+---
+
 ## [0.4.0] - 2026-11-10
 
 ### Keterangan Perubahan
@@ -53,6 +60,7 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 - Workflow otomasi CI/CD & GitHub Releases (`.github/workflows/release.yml`, `.github/workflows/ci.yml`).
 - Skema dasar basis data spasial (tabel batas administrasi kecamatan/desa dan objek tematik).
 - Konfigurasi `.gitignore` menyeluruh untuk CI4, Vue 3, GIS, dan cPanel.
+
 
 
 

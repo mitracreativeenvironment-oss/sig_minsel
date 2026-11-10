@@ -3,19 +3,21 @@
 use CodeIgniter\Router\RouteCollection;
 
 /**
- * Konfigurasi Routing WebGIS Minahasa Selatan (Full API Backend)
+ * Konfigurasi Routing GeoMinsel (Full Backend API)
+ * Kata Kunci Endpoint Resmi: 'spasials'
  * 
  * @var RouteCollection $routes
  */
 
-// 1. Akses Root Non-API: Langsung Dialihkan (Redirect) ke Frontend
+// 1. Akses Root & Non-API: Langsung Dialihkan (Redirect) ke Frontend
 $routes->get('/', 'Home::index');
 
-// 2. Fallback 404 Non-API: Semua URL yang bukan API langsung dialihkan ke Frontend
+// 2. Fallback 404 Non-API: Semua URL selain 'spasials' langsung dialihkan ke Frontend
 $routes->set404Override('App\Controllers\Home::redirectFrontend');
 
-// 3. Grup Endpoint REST API (Dilindungi ApiTokenFilter)
-$routes->group('api/v1', static function ($routes) {
+// 3. Grup Endpoint Layanan Data Spasial Resmi (Prefix: 'spasials')
+// Seluruh endpoint ini dilindungi oleh ApiTokenFilter
+$routes->group('spasials', static function ($routes) {
     // Health check & Token Verification / Handshake
     $routes->get('ping', 'Api\AuthController::ping');
     $routes->get('auth/verify', 'Api\AuthController::verify');
@@ -30,7 +32,7 @@ $routes->group('api/v1', static function ($routes) {
 
     // Layer Tematik & Objek Spasial (Point, Line, Polygon)
     // Mendukung filter: ?kecamatan_id=... & ?desa_id=... & ?bbox=...
-    $routes->get('spasial/kategori', 'Api\SpasialController::kategori');
-    $routes->get('spasial/layer/(:segment)', 'Api\SpasialController::getLayer/$1');
-    $routes->get('spasial/objek/(:num)', 'Api\SpasialController::getObjek/$1');
+    $routes->get('layer/kategori', 'Api\SpasialController::kategori');
+    $routes->get('layer/(:segment)', 'Api\SpasialController::getLayer/$1');
+    $routes->get('objek/(:num)', 'Api\SpasialController::getObjek/$1');
 });

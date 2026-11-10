@@ -20,9 +20,9 @@ class ApiSecurityTest extends CIUnitTestCase
         $result->assertRedirect('http://localhost:5173');
     }
 
-    public function testApiWithoutTokenIsUnauthorized()
+    public function testSpasialsWithoutTokenIsUnauthorized()
     {
-        $result = $this->get('api/v1/ping');
+        $result = $this->get('spasials/ping');
         $result->assertStatus(401);
         $result->assertJSONExact([
             'status'  => 401,
@@ -32,26 +32,26 @@ class ApiSecurityTest extends CIUnitTestCase
         ]);
     }
 
-    public function testApiHierarchyWithoutTokenIsUnauthorized()
+    public function testSpasialsHierarchyWithoutTokenIsUnauthorized()
     {
-        $result = $this->get('api/v1/wilayah/hierarchy');
+        $result = $this->get('spasials/wilayah/hierarchy');
         $result->assertStatus(401);
     }
 
-    public function testApiWithInvalidTokenIsForbidden()
+    public function testSpasialsWithInvalidTokenIsForbidden()
     {
         $result = $this->withHeaders([
             'X-API-TOKEN' => 'invalid_random_token_123'
-        ])->get('api/v1/ping');
+        ])->get('spasials/ping');
 
         $result->assertStatus(403);
     }
 
-    public function testApiWithValidTokenIsSuccessful()
+    public function testSpasialsWithValidTokenIsSuccessful()
     {
         $result = $this->withHeaders([
             'X-API-TOKEN' => 'sig_minsel_sec_2026_m1n53l_k4b'
-        ])->get('api/v1/ping');
+        ])->get('spasials/ping');
 
         $result->assertStatus(200);
         $result->assertJSONFragment([

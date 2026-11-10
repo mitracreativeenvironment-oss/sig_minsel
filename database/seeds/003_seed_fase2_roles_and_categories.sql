@@ -142,3 +142,4 @@ INSERT INTO `user_roles` (`user_id`, `role_id`) VALUES
 (6, 6), -- Approver Pusat -> Approver Data
 (7, 7)  -- Pimpinan -> Pimpinan / Executive Viewer
 ON DUPLICATE KEY UPDATE `role_id`=VALUES(`role_id`);
+

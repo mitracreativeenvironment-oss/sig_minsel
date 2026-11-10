@@ -24,6 +24,11 @@ class App extends BaseConfig
     public string $frontendURL = 'http://localhost:5173';
 
     /**
+     * Kata kunci prefix endpoint layanan spasial resmi (default: 'spasials').
+     */
+    public string $apiPrefix = 'spasials';
+
+    /**
      * API Token resmi dari frontend.
      */
     public string $apiToken = 'sig_minsel_sec_2026_m1n53l_k4b';

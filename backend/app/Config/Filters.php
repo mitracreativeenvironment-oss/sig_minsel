@@ -78,7 +78,7 @@ class Filters extends BaseFilters
             'cors-filter',
             'redirect-non-api' => [
                 'except' => [
-                    'api/*',
+                    'spasials/*',
                 ],
             ],
             // 'honeypot',
@@ -119,7 +119,7 @@ class Filters extends BaseFilters
     public array $filters = [
         'api-token' => [
             'before' => [
-                'api/*',
+                'spasials/*',
             ],
         ],
     ];
