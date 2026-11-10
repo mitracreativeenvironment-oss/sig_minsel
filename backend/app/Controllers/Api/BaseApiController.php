@@ -72,5 +72,13 @@ abstract class BaseApiController extends ResourceController
 
         return $this->respond($response, $code);
     }
+
+    /**
+     * Alias method untuk respondFailError
+     */
+    protected function respondError(string $message, int $code = 400, $errors = null): ResponseInterface
+    {
+        return $this->respondFailError($message, $code, $errors);
+    }
 }
 

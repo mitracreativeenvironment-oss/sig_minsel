@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue';
 import { useAuthStore } from '../stores/authStore';
 import { sigApi } from '../services/api';
 import { notify, confirmDialog, promptNoteDialog } from '../services/alert';
-import type { RoleName, DatasetItem, DataDasarVersion, WorkflowState } from '../types';
+import type { RoleName, DatasetItem, DataDasarVersion, WorkflowState, UserItem } from '../types';
 import {
   LayoutDashboard,
   Database,
@@ -25,7 +25,15 @@ import {
   LayoutGrid,
   List,
   X,
-  RotateCcw
+  RotateCcw,
+  Plus,
+  Edit3,
+  Trash2,
+  ShieldCheck,
+  ToggleLeft,
+  ToggleRight,
+  FilePlus2,
+  UserPlus
 } from 'lucide-vue-next';
 
 const emit = defineEmits<{
@@ -41,6 +49,7 @@ const activeTab = ref<NavTab>('overview');
 const datasets = ref<DatasetItem[]>([]);
 const dataDasarList = ref<DataDasarVersion[]>([]);
 const workflowStates = ref<WorkflowState[]>([]);
+const usersList = ref<UserItem[]>([]);
 const isLoading = ref(false);
 
 // View Mode State with LocalStorage Persistence
@@ -194,24 +203,287 @@ const searchUserQuery = ref('');
 const filterUserRole = ref('');
 const filteredUsers = computed(() => {
   const q = searchUserQuery.value.trim().toLowerCase();
-  return authStore.roles.filter((r) => {
+  return usersList.value.filter((u) => {
     const matchSearch =
       !q ||
-      r.label.toLowerCase().includes(q) ||
-      r.name.toLowerCase().includes(q) ||
-      r.opd.toLowerCase().includes(q);
-    const matchRole = !filterUserRole.value || r.name === filterUserRole.value;
+      u.nama_lengkap.toLowerCase().includes(q) ||
+      u.username.toLowerCase().includes(q) ||
+      u.opd.toLowerCase().includes(q) ||
+      u.role.toLowerCase().includes(q);
+    const matchRole = !filterUserRole.value || u.role === filterUserRole.value;
     return matchSearch && matchRole;
   });
 });
 
+// ==========================================
+// HAK AKSES ROLE (ROLE PERMISSIONS)
+// ==========================================
+const canCreateDataset = computed(() =>
+  ['superadmin', 'admin_gis', 'admin_opd', 'operator_opd'].includes(authStore.currentRole)
+);
+
+function canEditDataset(d: DatasetItem): boolean {
+  if (['superadmin', 'admin_gis'].includes(authStore.currentRole)) return true;
+  if (['admin_opd', 'operator_opd'].includes(authStore.currentRole)) {
+    return ['DRAFT', 'REJECTED_GIS'].includes(d.status);
+  }
+  return false;
+}
+
+function canDeleteDataset(d: DatasetItem): boolean {
+  if (authStore.currentRole === 'superadmin') return true;
+  if (['admin_opd', 'operator_opd'].includes(authStore.currentRole)) {
+    return d.status === 'DRAFT';
+  }
+  return false;
+}
+
+const canManageUsers = computed(() =>
+  ['superadmin', 'admin_opd'].includes(authStore.currentRole)
+);
+
+const isReadOnlyRole = computed(() =>
+  ['pimpinan', 'publik'].includes(authStore.currentRole)
+);
+
+// ==========================================
+// MODAL STATE: CREATE & EDIT DATASET & USER
+// ==========================================
+const isCreateDatasetModalOpen = ref(false);
+const isEditDatasetModalOpen = ref(false);
+const isCreateUserModalOpen = ref(false);
+
+const newDatasetForm = ref({
+  nama_dataset: '',
+  kode_dataset: '',
+  kategori: 'infrastruktur_pu',
+  nama_kategori: 'Pekerjaan Umum dan Infrastruktur',
+  opd: authStore.opdLabel || 'Dinas Pekerjaan Umum dan Penataan Ruang',
+  kode_opd: authStore.user?.kode_opd || 'DPUPR',
+  tipe_geometri: 'Point',
+  kecamatan: 'Amurang',
+  deskripsi: '',
+  jumlah_fitur: 10
+});
+
+const editDatasetForm = ref<{
+  id: number;
+  nama_dataset: string;
+  deskripsi: string;
+  kecamatan: string;
+  kategori: string;
+  nama_kategori: string;
+  tipe_geometri: 'Point' | 'LineString' | 'Polygon';
+}>({
+  id: 0,
+  nama_dataset: '',
+  deskripsi: '',
+  kecamatan: '',
+  kategori: '',
+  nama_kategori: '',
+  tipe_geometri: 'Point'
+});
+
+const newUserForm = ref({
+  username: '',
+  nama_lengkap: '',
+  email: '',
+  role: 'operator_opd' as RoleName,
+  opd: 'Dinas Komunikasi dan Informatika',
+  kode_opd: 'DISKOMINFO'
+});
+
+function openCreateDatasetModal() {
+  newDatasetForm.value = {
+    nama_dataset: '',
+    kode_dataset: 'MNSL-' + Math.floor(1000 + Math.random() * 9000),
+    kategori: 'infrastruktur_pu',
+    nama_kategori: 'Infrastruktur dan Tata Ruang',
+    opd: authStore.opdLabel || 'Dinas Pekerjaan Umum dan Penataan Ruang',
+    kode_opd: authStore.user?.kode_opd || 'DPUPR',
+    tipe_geometri: 'Point',
+    kecamatan: 'Amurang',
+    deskripsi: '',
+    jumlah_fitur: 15
+  };
+  isCreateDatasetModalOpen.value = true;
+}
+
+async function handleCreateDataset() {
+  if (!newDatasetForm.value.nama_dataset || !newDatasetForm.value.kode_dataset) {
+    notify.error('Input Tidak Lengkap', 'Nama dan Kode dataset wajib diisi!');
+    return;
+  }
+
+  try {
+    const res = await sigApi.createDataset({
+      ...newDatasetForm.value,
+      submitted_by: authStore.user?.nama_lengkap || 'Operator OPD'
+    });
+    datasets.value.unshift(res.data);
+    isCreateDatasetModalOpen.value = false;
+    notify.success('Dataset Berhasil Dibuat', res.message || 'Dataset masuk ke katalog dengan status DRAFT.');
+  } catch (e: any) {
+    notify.error('Gagal Membuat Dataset', e.message);
+  }
+}
+
+function openEditDatasetModal(d: DatasetItem) {
+  editDatasetForm.value = {
+    id: d.id,
+    nama_dataset: d.nama_dataset,
+    deskripsi: d.deskripsi || '',
+    kecamatan: d.kecamatan || 'Amurang',
+    kategori: d.kategori,
+    nama_kategori: d.nama_kategori,
+    tipe_geometri: d.tipe_geometri
+  };
+  isEditDatasetModalOpen.value = true;
+}
+
+async function handleUpdateDataset() {
+  try {
+    const res = await sigApi.updateDataset({
+      ...editDatasetForm.value,
+      actor_role: authStore.currentRole
+    });
+    const target = datasets.value.find((d) => d.id === editDatasetForm.value.id);
+    if (target) {
+      target.nama_dataset = res.data.nama_dataset;
+      target.deskripsi = res.data.deskripsi;
+      target.kecamatan = res.data.kecamatan;
+      target.kategori = res.data.kategori;
+      target.nama_kategori = res.data.nama_kategori;
+      target.tipe_geometri = res.data.tipe_geometri;
+      target.updated_at = res.data.updated_at;
+    }
+    isEditDatasetModalOpen.value = false;
+    notify.success('Dataset Diperbarui', res.message || 'Informasi dataset berhasil disimpan.');
+  } catch (e: any) {
+    notify.error('Gagal Memperbarui', e.message);
+  }
+}
+
+async function handleDeleteDataset(d: DatasetItem) {
+  const confirmed = await confirmDialog({
+    title: 'Hapus Dataset?',
+    text: `Dataset "${d.nama_dataset}" (${d.kode_dataset}) akan dihapus secara permanen dari basis data.`,
+    confirmButtonText: 'Ya, Hapus Dataset',
+    icon: 'warning',
+    isDangerous: true
+  });
+
+  if (!confirmed) return;
+
+  try {
+    const res = await sigApi.deleteDataset({
+      id: d.id,
+      actor_role: authStore.currentRole
+    });
+    datasets.value = datasets.value.filter((item) => item.id !== d.id);
+    notify.success('Dataset Dihapus', res.message || `Dataset "${d.nama_dataset}" berhasil dihapus.`);
+  } catch (e: any) {
+    notify.error('Gagal Menghapus Dataset', e.message);
+  }
+}
+
+async function handleDeleteDataDasarWithConfirm(v: DataDasarVersion) {
+  const confirmed = await confirmDialog({
+    title: 'Hapus Berkas Data Dasar?',
+    text: `Berkas ZIP "${v.nama_file_zip}" (${v.label_tipe} - Versi ${v.versi}) akan dihapus dari arsip sistem.`,
+    confirmButtonText: 'Ya, Hapus Berkas',
+    icon: 'warning',
+    isDangerous: true
+  });
+
+  if (!confirmed) return;
+
+  try {
+    const res = await sigApi.deleteDataDasar(v.id);
+    dataDasarList.value = dataDasarList.value.filter((item) => item.id !== v.id);
+    notify.success('Berkas SHP Dihapus', res.message || 'Arsip data dasar berhasil dibersihkan.');
+  } catch (e: any) {
+    notify.error('Gagal Hapus Berkas', e.message);
+  }
+}
+
+// User CRUD Handlers
+function openCreateUserModal() {
+  newUserForm.value = {
+    username: '',
+    nama_lengkap: '',
+    email: '',
+    role: 'operator_opd',
+    opd: authStore.opdLabel || 'Dinas Pekerjaan Umum dan Penataan Ruang',
+    kode_opd: authStore.user?.kode_opd || 'DPUPR'
+  };
+  isCreateUserModalOpen.value = true;
+}
+
+async function handleCreateUser() {
+  if (!newUserForm.value.username || !newUserForm.value.nama_lengkap) {
+    notify.error('Input Tidak Lengkap', 'Username dan Nama Lengkap wajib diisi!');
+    return;
+  }
+
+  try {
+    const res = await sigApi.createUser(newUserForm.value);
+    usersList.value.push(res.data);
+    isCreateUserModalOpen.value = false;
+    notify.success('Pengguna Ditambahkan', res.message || 'Akun pengguna baru berhasil dibuat.');
+  } catch (e: any) {
+    notify.error('Gagal Tambah Pengguna', e.message);
+  }
+}
+
+async function handleToggleUserStatusWithConfirm(u: UserItem) {
+  const actionText = u.is_active ? 'Nonaktifkan' : 'Aktifkan';
+  const confirmed = await confirmDialog({
+    title: `${actionText} Akun Pengguna?`,
+    text: `Akun "${u.username}" (${u.nama_lengkap}) akan ${u.is_active ? 'dinonaktifkan hak aksesnya' : 'diaktifkan kembali'}.`,
+    confirmButtonText: `Ya, ${actionText}`,
+    icon: 'warning'
+  });
+
+  if (!confirmed) return;
+
+  try {
+    const res = await sigApi.toggleUserStatus(u.id);
+    u.is_active = res.data.is_active;
+    notify.success('Status Pengguna Diperbarui', res.message || `Akun ${u.username} berhasil diperbarui.`);
+  } catch (e: any) {
+    notify.error('Gagal Ubah Status', e.message);
+  }
+}
+
+async function handleDeleteUserWithConfirm(u: UserItem) {
+  const confirmed = await confirmDialog({
+    title: 'Hapus Akun Pengguna?',
+    text: `Akun "${u.username}" (${u.nama_lengkap}) akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.`,
+    confirmButtonText: 'Ya, Hapus Akun',
+    icon: 'warning',
+    isDangerous: true
+  });
+
+  if (!confirmed) return;
+
+  try {
+    const res = await sigApi.deleteUser(u.id);
+    usersList.value = usersList.value.filter((item) => item.id !== u.id);
+    notify.success('Pengguna Dihapus', res.message || `Akun "${u.username}" berhasil dihapus.`);
+  } catch (e: any) {
+    notify.error('Gagal Hapus Pengguna', e.message);
+  }
+}
+
 async function loadDashboardData() {
   isLoading.value = true;
   try {
-    const [wfRes, dsRes, ddRes] = await Promise.allSettled([
+    const [wfRes, dsRes, ddRes, usersRes] = await Promise.allSettled([
       sigApi.getWorkflowStates(),
       sigApi.getWorkflowDatasets(),
-      sigApi.getDataDasar()
+      sigApi.getDataDasar(),
+      sigApi.getUsers()
     ]);
 
     if (wfRes.status === 'fulfilled') {
@@ -222,6 +494,9 @@ async function loadDashboardData() {
     }
     if (ddRes.status === 'fulfilled') {
       dataDasarList.value = ddRes.value.data.versions;
+    }
+    if (usersRes.status === 'fulfilled') {
+      usersList.value = usersRes.value.data;
     }
   } catch (e) {
     console.warn('Gagal memuat data dashboard:', e);
@@ -639,6 +914,18 @@ onMounted(() => {
 
             <!-- Controls: Search, Filters, and View Switcher -->
             <div class="header-controls-cluster">
+              <!-- Create Dataset Button (Role Guarded) -->
+              <button
+                v-if="canCreateDataset"
+                type="button"
+                class="btn-create-dataset"
+                @click="openCreateDatasetModal"
+                title="Tambah Dataset Spasial Baru (Draft)"
+              >
+                <Plus :size="15" />
+                <span>Tambah Dataset</span>
+              </button>
+
               <!-- View Mode Switcher -->
               <div class="view-mode-toggle" role="group" aria-label="Pilihan Tampilan">
                 <button
@@ -663,6 +950,14 @@ onMounted(() => {
                 </button>
               </div>
             </div>
+          </div>
+
+          <!-- Read-Only Notice for Pimpinan / Publik -->
+          <div v-if="isReadOnlyRole" class="readonly-notice-banner">
+            <ShieldCheck :size="16" class="icon-ro" />
+            <span>
+              Mode Pemantauan Eksekutif / Publik — Hak akses tindakan dibatasi untuk eksplorasi dan monitoring data spasial.
+            </span>
           </div>
 
           <!-- Multi-Criteria Filter & Search Toolbar -->
@@ -804,13 +1099,37 @@ onMounted(() => {
                 <span class="bento-cat-label">{{ d.nama_kategori }}</span>
 
                 <div class="action-btn-group">
+                  <!-- Edit Metadata (Operator/Admin OPD on Draft, or Admin GIS/Superadmin) -->
+                  <button
+                    v-if="canEditDataset(d)"
+                    type="button"
+                    class="btn-act btn-edit"
+                    @click="openEditDatasetModal(d)"
+                    title="Perbarui Metadata"
+                  >
+                    <Edit3 :size="12" />
+                    <span>Edit</span>
+                  </button>
+
+                  <!-- Delete Draft (Operator/Admin OPD on Draft, or Superadmin) -->
+                  <button
+                    v-if="canDeleteDataset(d)"
+                    type="button"
+                    class="btn-act btn-delete"
+                    @click="handleDeleteDataset(d)"
+                    title="Hapus Dataset Draft"
+                  >
+                    <Trash2 :size="12" />
+                    <span>Hapus</span>
+                  </button>
+
                   <button
                     v-if="['superadmin', 'operator_opd', 'admin_opd'].includes(authStore.currentRole) && d.status === 'DRAFT'"
                     class="btn-act btn-submit"
                     @click="handleTransitionWithConfirm(d, 'IN_VALIDATION_GIS', 'Ajukan Validasi', 'Diajukan ke validasi teknis GIS')"
                   >
-                    <Send :size="13" />
-                    <span>Ajukan Validasi</span>
+                    <Send :size="12" />
+                    <span>Ajukan</span>
                   </button>
 
                   <button
@@ -818,7 +1137,7 @@ onMounted(() => {
                     class="btn-act btn-publish"
                     @click="handleTransitionWithConfirm(d, 'PUBLISHED', 'Publikasikan ke Geoportal', 'Diterbitkan ke katalog publik geoportal')"
                   >
-                    <Layers :size="13" />
+                    <Layers :size="12" />
                     <span>Publikasikan</span>
                   </button>
 
@@ -871,13 +1190,37 @@ onMounted(() => {
                   </td>
                   <td>
                     <div class="action-btn-group">
+                      <!-- Edit Metadata -->
+                      <button
+                        v-if="canEditDataset(d)"
+                        type="button"
+                        class="btn-act btn-edit"
+                        @click="openEditDatasetModal(d)"
+                        title="Perbarui Metadata"
+                      >
+                        <Edit3 :size="12" />
+                        <span>Edit</span>
+                      </button>
+
+                      <!-- Delete Draft -->
+                      <button
+                        v-if="canDeleteDataset(d)"
+                        type="button"
+                        class="btn-act btn-delete"
+                        @click="handleDeleteDataset(d)"
+                        title="Hapus Dataset Draft"
+                      >
+                        <Trash2 :size="12" />
+                        <span>Hapus</span>
+                      </button>
+
                       <button
                         v-if="['superadmin', 'operator_opd', 'admin_opd'].includes(authStore.currentRole) && d.status === 'DRAFT'"
                         class="btn-act btn-submit"
                         @click="handleTransitionWithConfirm(d, 'IN_VALIDATION_GIS', 'Ajukan Validasi', 'Diajukan ke validasi teknis GIS')"
                       >
-                        <Send :size="13" />
-                        <span>Ajukan Validasi</span>
+                        <Send :size="12" />
+                        <span>Ajukan</span>
                       </button>
 
                       <button
@@ -885,7 +1228,7 @@ onMounted(() => {
                         class="btn-act btn-publish"
                         @click="handleTransitionWithConfirm(d, 'PUBLISHED', 'Publikasikan ke Geoportal', 'Diterbitkan ke katalog publik geoportal')"
                       >
-                        <Layers :size="13" />
+                        <Layers :size="12" />
                         <span>Publikasikan</span>
                       </button>
 
@@ -1172,17 +1515,34 @@ onMounted(() => {
                     </span>
                   </td>
                   <td>
-                    <button
-                      v-if="v.status !== 'AKTIF'"
-                      class="btn-act btn-approve"
-                      @click="handleActivateDataDasarWithConfirm(v)"
-                    >
-                      <span>Aktifkan Acuan</span>
-                    </button>
-                    <span v-else class="text-active-mark">
-                      <CheckCircle2 :size="14" />
-                      <span>Rujukan Utama</span>
-                    </span>
+                    <div class="action-btn-group">
+                      <button
+                        v-if="v.status !== 'AKTIF'"
+                        type="button"
+                        class="btn-act btn-approve"
+                        @click="handleActivateDataDasarWithConfirm(v)"
+                        title="Jadikan Acuan Batas Utama"
+                      >
+                        <CheckCircle2 :size="12" />
+                        <span>Aktifkan Acuan</span>
+                      </button>
+
+                      <button
+                        v-if="v.status !== 'AKTIF'"
+                        type="button"
+                        class="btn-act btn-delete"
+                        @click="handleDeleteDataDasarWithConfirm(v)"
+                        title="Hapus Berkas SHP Tidak Aktif"
+                      >
+                        <Trash2 :size="12" />
+                        <span>Hapus</span>
+                      </button>
+
+                      <span v-else class="text-active-mark">
+                        <CheckCircle2 :size="14" />
+                        <span>Rujukan Utama</span>
+                      </span>
+                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -1200,8 +1560,20 @@ onMounted(() => {
               <p class="content-sub">Penerapan pemisahan wewenang 8 Role dan pembatasan akses data sektoral</p>
             </div>
 
-            <!-- User Search & Role Filter -->
+            <!-- User Search & Role Filter & Create User Button -->
             <div class="header-controls-cluster">
+              <!-- Create User Button -->
+              <button
+                v-if="canManageUsers"
+                type="button"
+                class="btn-create-dataset"
+                @click="openCreateUserModal"
+                title="Tambah Akun Pengguna / Operator Baru"
+              >
+                <UserPlus :size="15" />
+                <span>Tambah Pengguna</span>
+              </button>
+
               <div class="search-input-wrap search-sm">
                 <Search :size="15" class="search-icon" />
                 <input
@@ -1233,26 +1605,67 @@ onMounted(() => {
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Nama Pengguna &amp; Peran</th>
-                  <th>Role Teknis</th>
+                  <th>Nama Pengguna &amp; Email</th>
+                  <th>Username &amp; ID</th>
+                  <th>Role Resmi</th>
                   <th>Organisasi Perangkat Daerah (OPD)</th>
                   <th>Status Akses</th>
+                  <th>Tindakan Otoritas</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="r in filteredUsers" :key="r.id">
+                <tr v-for="u in filteredUsers" :key="u.id">
                   <td>
                     <div class="cell-main">
-                      <span class="cell-title">{{ r.label }}</span>
-                      <span class="cell-meta">ID Pengguna: #{{ r.id }} &bull; Kab. Minahasa Selatan</span>
+                      <span class="cell-title">{{ u.nama_lengkap }}</span>
+                      <span class="cell-meta">{{ u.email }}</span>
                     </div>
                   </td>
                   <td>
-                    <span class="badge-role">{{ r.name }}</span>
+                    <span class="text-source">@{{ u.username }} &bull; #{{ u.id }}</span>
                   </td>
-                  <td>{{ r.opd }}</td>
                   <td>
-                    <span class="status-pill st-published">Aktif</span>
+                    <span class="badge-role">{{ u.role_label || u.role }}</span>
+                  </td>
+                  <td>{{ u.opd }}</td>
+                  <td>
+                    <span
+                      class="status-pill"
+                      :class="u.is_active ? 'st-published' : 'st-draft'"
+                    >
+                      {{ u.is_active ? 'Aktif' : 'Nonaktif' }}
+                    </span>
+                  </td>
+                  <td>
+                    <div class="action-btn-group">
+                      <template v-if="u.id !== 1 && canManageUsers">
+                        <button
+                          type="button"
+                          class="btn-act"
+                          :class="u.is_active ? 'btn-toggle-deact' : 'btn-approve'"
+                          @click="handleToggleUserStatusWithConfirm(u)"
+                          :title="u.is_active ? 'Nonaktifkan Akses' : 'Aktifkan Akses'"
+                        >
+                          <ToggleRight v-if="u.is_active" :size="13" />
+                          <ToggleLeft v-else :size="13" />
+                          <span>{{ u.is_active ? 'Nonaktifkan' : 'Aktifkan' }}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          class="btn-act btn-delete"
+                          @click="handleDeleteUserWithConfirm(u)"
+                          title="Hapus Akun Pengguna"
+                        >
+                          <Trash2 :size="12" />
+                          <span>Hapus</span>
+                        </button>
+                      </template>
+                      <span v-else class="text-source">
+                        <ShieldCheck :size="13" />
+                        <span>Akun Utama Terproteksi</span>
+                      </span>
+                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -1309,6 +1722,210 @@ onMounted(() => {
           </div>
         </div>
       </section>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- MODAL 1: TAMBAH DATASET SPASIAL BARU (CREATE)                 -->
+    <!-- ============================================================== -->
+    <div v-if="isCreateDatasetModalOpen" class="modal-backdrop" @click.self="isCreateDatasetModalOpen = false">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <FilePlus2 :size="18" class="text-blue" />
+            <h3 class="modal-title">Tambah Dataset Spasial Baru</h3>
+          </div>
+          <button type="button" class="btn-close-modal" @click="isCreateDatasetModalOpen = false">
+            <X :size="16" />
+          </button>
+        </div>
+
+        <form class="modal-form" @submit.prevent="handleCreateDataset">
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Nama Dataset <span class="text-red">*</span></label>
+              <input v-model="newDatasetForm.nama_dataset" type="text" class="form-input" placeholder="Contoh: Sebaran Fasilitas Air Bersih" required />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Kode Unik Dataset <span class="text-red">*</span></label>
+              <input v-model="newDatasetForm.kode_dataset" type="text" class="form-input font-mono" placeholder="MNSL-PUPR-01" required />
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Kategori Tematik</label>
+              <select v-model="newDatasetForm.kategori" class="form-input">
+                <option value="infrastruktur_pu">Pekerjaan Umum &amp; Infrastruktur</option>
+                <option value="pertanian">Pertanian &amp; Ketahanan Pangan</option>
+                <option value="kesehatan">Kesehatan &amp; Faskes</option>
+                <option value="pariwisata">Pariwisata &amp; Kebudayaan</option>
+                <option value="kebencanaan">Kebencanaan &amp; Titik Rawan</option>
+                <option value="pendidikan">Pendidikan &amp; Sekolah</option>
+                <option value="lingkungan">Lingkungan Hidup &amp; Kehutanan</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label class="form-label">Tipe Geometri</label>
+              <select v-model="newDatasetForm.tipe_geometri" class="form-input">
+                <option value="Point">Point (Titik Koordinat)</option>
+                <option value="LineString">LineString (Jaringan / Garis)</option>
+                <option value="Polygon">Polygon (Kawasan / Area)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Cakupan Kecamatan</label>
+              <select v-model="newDatasetForm.kecamatan" class="form-input">
+                <option value="Seluruh Kabupaten">Seluruh Kabupaten Minahasa Selatan</option>
+                <option v-for="kec in daftarKecamatan" :key="kec" :value="kec">{{ kec }}</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label class="form-label">Estimasi Jumlah Fitur</label>
+              <input v-model.number="newDatasetForm.jumlah_fitur" type="number" class="form-input" min="1" />
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label class="form-label">Deskripsi / Ruang Lingkup Data</label>
+            <textarea v-model="newDatasetForm.deskripsi" class="form-textarea" rows="3" placeholder="Jelaskan sumber data, metode akuisisi, dan kegunaan spasial..."></textarea>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-modal-cancel" @click="isCreateDatasetModalOpen = false">Batal</button>
+            <button type="submit" class="btn-modal-submit">
+              <Plus :size="15" />
+              <span>Simpan Sebagai Draft</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- MODAL 2: EDIT DATASET SPASIAL (UPDATE)                        -->
+    <!-- ============================================================== -->
+    <div v-if="isEditDatasetModalOpen" class="modal-backdrop" @click.self="isEditDatasetModalOpen = false">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <Edit3 :size="18" class="text-amber" />
+            <h3 class="modal-title">Perbarui Informasi Dataset (#{{ editDatasetForm.id }})</h3>
+          </div>
+          <button type="button" class="btn-close-modal" @click="isEditDatasetModalOpen = false">
+            <X :size="16" />
+          </button>
+        </div>
+
+        <form class="modal-form" @submit.prevent="handleUpdateDataset">
+          <div class="form-field">
+            <label class="form-label">Nama Dataset <span class="text-red">*</span></label>
+            <input v-model="editDatasetForm.nama_dataset" type="text" class="form-input" required />
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Cakupan Wilayah</label>
+              <select v-model="editDatasetForm.kecamatan" class="form-input">
+                <option value="Seluruh Kabupaten">Seluruh Kabupaten</option>
+                <option v-for="kec in daftarKecamatan" :key="kec" :value="kec">{{ kec }}</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label class="form-label">Tipe Geometri</label>
+              <select v-model="editDatasetForm.tipe_geometri" class="form-input">
+                <option value="Point">Point</option>
+                <option value="LineString">LineString</option>
+                <option value="Polygon">Polygon</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label class="form-label">Deskripsi</label>
+            <textarea v-model="editDatasetForm.deskripsi" class="form-textarea" rows="3"></textarea>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-modal-cancel" @click="isEditDatasetModalOpen = false">Batal</button>
+            <button type="submit" class="btn-modal-submit">
+              <CheckCircle2 :size="15" />
+              <span>Simpan Perubahan</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- MODAL 3: TAMBAH PENGGUNA / OPERATOR BARU                      -->
+    <!-- ============================================================== -->
+    <div v-if="isCreateUserModalOpen" class="modal-backdrop" @click.self="isCreateUserModalOpen = false">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <UserPlus :size="18" class="text-blue" />
+            <h3 class="modal-title">Tambah Akun Pengguna / Operator</h3>
+          </div>
+          <button type="button" class="btn-close-modal" @click="isCreateUserModalOpen = false">
+            <X :size="16" />
+          </button>
+        </div>
+
+        <form class="modal-form" @submit.prevent="handleCreateUser">
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Username <span class="text-red">*</span></label>
+              <input v-model="newUserForm.username" type="text" class="form-input font-mono" placeholder="op_pupr_minsel" required />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Nama Lengkap &amp; Gelar <span class="text-red">*</span></label>
+              <input v-model="newUserForm.nama_lengkap" type="text" class="form-input" placeholder="John Doe, S.T." required />
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label class="form-label">Email Dinas</label>
+            <input v-model="newUserForm.email" type="email" class="form-input" placeholder="nama@minahasaselatan.go.id" />
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Peran Sistem (Role)</label>
+              <select v-model="newUserForm.role" class="form-input">
+                <option value="operator_opd">Operator OPD</option>
+                <option value="admin_opd">Admin OPD</option>
+                <option value="validator_gis">Validator GIS</option>
+                <option value="approver_data">Approver Data (Bappelitbangda)</option>
+                <option value="admin_gis">Admin GIS</option>
+                <option value="pimpinan">Pimpinan Daerah</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label class="form-label">Instansi / OPD</label>
+              <select v-model="newUserForm.opd" class="form-input">
+                <option value="Dinas Pekerjaan Umum dan Penataan Ruang">Dinas Pekerjaan Umum dan Penataan Ruang</option>
+                <option value="Dinas Pertanian">Dinas Pertanian</option>
+                <option value="Dinas Kesehatan">Dinas Kesehatan</option>
+                <option value="Dinas Pariwisata">Dinas Pariwisata</option>
+                <option value="Badan Penanggulangan Bencana Daerah">Badan Penanggulangan Bencana Daerah</option>
+                <option value="Badan Perencanaan, Penelitian dan Pengembangan Daerah">Bappelitbangda</option>
+                <option value="Dinas Komunikasi dan Informatika">Dinas Komunikasi dan Informatika</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-modal-cancel" @click="isCreateUserModalOpen = false">Batal</button>
+            <button type="submit" class="btn-modal-submit">
+              <UserPlus :size="15" />
+              <span>Daftarkan Pengguna</span>
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 </template>
@@ -2500,6 +3117,244 @@ onMounted(() => {
   font-size: 11px;
   font-weight: 600;
   color: #f59e0b;
+}
+
+.btn-create-dataset {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: #0284c7;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-create-dataset:hover {
+  background: #0369a1;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
+}
+
+.btn-edit {
+  background: rgba(245, 158, 11, 0.15) !important;
+  color: #fbbf24 !important;
+  border: 1px solid rgba(245, 158, 11, 0.3) !important;
+}
+
+.btn-edit:hover {
+  background: rgba(245, 158, 11, 0.25) !important;
+}
+
+.btn-delete {
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: #f87171 !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+}
+
+.btn-delete:hover {
+  background: rgba(239, 68, 68, 0.25) !important;
+}
+
+.btn-toggle-deact {
+  background: rgba(239, 68, 68, 0.12) !important;
+  color: #fca5a5 !important;
+}
+
+.readonly-notice-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  color: #38bdf8;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.icon-ro {
+  color: #38bdf8;
+  flex-shrink: 0;
+}
+
+/* MODAL SYSTEM */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal-card {
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 580px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.modal-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+
+.btn-close-modal {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-close-modal:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.modal-form {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: calc(85vh - 120px);
+  overflow-y: auto;
+}
+
+.form-row-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.text-red {
+  color: #ef4444;
+}
+
+.form-input, .form-textarea {
+  background: #0b132b;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: #ffffff;
+  font-size: 13px;
+  outline: none;
+  transition: all 0.2s;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.form-input:focus, .form-textarea:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 6px;
+}
+
+.btn-modal-cancel {
+  padding: 9px 18px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-modal-cancel:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+}
+
+.btn-modal-submit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 20px;
+  background: #0284c7;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-modal-submit:hover {
+  background: #0369a1;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
 }
 
 @media (max-width: 1024px) {

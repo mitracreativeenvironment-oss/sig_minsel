@@ -11,7 +11,8 @@ import type {
   WorkflowState,
   DatasetItem,
   DataDasarVersion,
-  ShpValidationReport
+  ShpValidationReport,
+  UserItem
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/spasials';
@@ -207,6 +208,98 @@ export const sigApi = {
 
   async activateDataDasar(id: number): Promise<{ data: DataDasarVersion; message: string }> {
     return request('/admin/data-dasar/activate', {
+      method: 'POST',
+      body: JSON.stringify({ id })
+    });
+  },
+
+  async deleteDataDasar(id: number): Promise<{ data: { id: number }; message: string }> {
+    return request('/admin/data-dasar/delete', {
+      method: 'POST',
+      body: JSON.stringify({ id })
+    });
+  },
+
+  // ==========================================
+  // CRUD DATASET SEKTORAL
+  // ==========================================
+
+  async createDataset(payload: {
+    kode_dataset: string;
+    nama_dataset: string;
+    kategori: string;
+    nama_kategori: string;
+    opd: string;
+    kode_opd: string;
+    tipe_geometri: string;
+    kecamatan: string;
+    deskripsi?: string;
+    jumlah_fitur?: number;
+    submitted_by?: string;
+  }): Promise<{ data: DatasetItem; message: string }> {
+    return request('/workflow/datasets/create', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  async updateDataset(payload: {
+    id: number;
+    nama_dataset?: string;
+    deskripsi?: string;
+    kecamatan?: string;
+    kategori?: string;
+    nama_kategori?: string;
+    tipe_geometri?: string;
+    actor_role?: string;
+  }): Promise<{ data: DatasetItem; message: string }> {
+    return request('/workflow/datasets/update', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  async deleteDataset(payload: {
+    id: number;
+    actor_role?: string;
+  }): Promise<{ data: { id: number; nama_dataset: string }; message: string }> {
+    return request('/workflow/datasets/delete', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  // ==========================================
+  // CRUD MANAJEMEN PENGGUNA & OPD
+  // ==========================================
+
+  async getUsers(): Promise<{ data: UserItem[]; message: string }> {
+    return request('/admin/users');
+  },
+
+  async createUser(payload: {
+    username: string;
+    nama_lengkap: string;
+    email?: string;
+    role: string;
+    opd: string;
+    kode_opd: string;
+  }): Promise<{ data: UserItem; message: string }> {
+    return request('/admin/users/create', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  async toggleUserStatus(id: number): Promise<{ data: UserItem; message: string }> {
+    return request('/admin/users/toggle', {
+      method: 'POST',
+      body: JSON.stringify({ id })
+    });
+  },
+
+  async deleteUser(id: number): Promise<{ data: { id: number }; message: string }> {
+    return request('/admin/users/delete', {
       method: 'POST',
       body: JSON.stringify({ id })
     });

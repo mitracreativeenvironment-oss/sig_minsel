@@ -39,13 +39,23 @@ $routes->group('spasials', static function ($routes) {
     $routes->get('layer/(:segment)', 'Api\SpasialController::getLayer/$1');
     $routes->get('objek/(:num)', 'Api\SpasialController::getObjek/$1');
 
-    // Alur Persetujuan Terpusat (Workflow 12 Status Fase 2)
+    // Alur Persetujuan Terpusat (Workflow 12 Status Fase 2 & Dataset CRUD)
     $routes->get('workflow/states', 'Api\WorkflowController::states');
     $routes->get('workflow/datasets', 'Api\WorkflowController::datasets');
+    $routes->post('workflow/datasets/create', 'Api\WorkflowController::createDataset');
+    $routes->post('workflow/datasets/update', 'Api\WorkflowController::updateDataset');
+    $routes->post('workflow/datasets/delete', 'Api\WorkflowController::deleteDataset');
     $routes->post('workflow/transition', 'Api\WorkflowController::transition');
 
-    // Modul Superadmin: Data Dasar Geospasial (Upload & Validasi SHP)
+    // Modul Superadmin: Data Dasar Geospasial (Upload, Validasi & Hapus SHP)
     $routes->get('admin/data-dasar', 'Api\WorkflowController::dataDasar');
     $routes->post('admin/data-dasar/upload', 'Api\WorkflowController::uploadDataDasar');
     $routes->post('admin/data-dasar/activate', 'Api\WorkflowController::activateDataDasar');
+    $routes->post('admin/data-dasar/delete', 'Api\WorkflowController::deleteDataDasar');
+
+    // Modul Manajemen Pengguna & OPD (Superadmin & Admin OPD)
+    $routes->get('admin/users', 'Api\AuthController::getUsers');
+    $routes->post('admin/users/create', 'Api\AuthController::createUser');
+    $routes->post('admin/users/toggle', 'Api\AuthController::toggleUserStatus');
+    $routes->post('admin/users/delete', 'Api\AuthController::deleteUser');
 });

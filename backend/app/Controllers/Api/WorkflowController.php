@@ -169,6 +169,44 @@ class WorkflowController extends BaseApiController
         ]
     ];
 
+    protected static function getStorageDatasets(): array
+    {
+        $file = WRITEPATH . 'datasets_workflow.json';
+        if (file_exists($file)) {
+            $data = json_decode((string)file_get_contents($file), true);
+            if (is_array($data) && !empty($data)) {
+                return $data;
+            }
+        }
+        file_put_contents($file, json_encode(self::$mockDatasets, JSON_PRETTY_PRINT));
+        return self::$mockDatasets;
+    }
+
+    protected static function saveStorageDatasets(array $datasets): void
+    {
+        $file = WRITEPATH . 'datasets_workflow.json';
+        file_put_contents($file, json_encode($datasets, JSON_PRETTY_PRINT));
+    }
+
+    protected static function getStorageDataDasar(): array
+    {
+        $file = WRITEPATH . 'data_dasar_versions.json';
+        if (file_exists($file)) {
+            $data = json_decode((string)file_get_contents($file), true);
+            if (is_array($data) && !empty($data)) {
+                return $data;
+            }
+        }
+        file_put_contents($file, json_encode(self::$dataDasarVersions, JSON_PRETTY_PRINT));
+        return self::$dataDasarVersions;
+    }
+
+    protected static function saveStorageDataDasar(array $versions): void
+    {
+        $file = WRITEPATH . 'data_dasar_versions.json';
+        file_put_contents($file, json_encode($versions, JSON_PRETTY_PRINT));
+    }
+
     /**
      * Daftar 12 Tahapan Workflow
      */
@@ -188,7 +226,8 @@ class WorkflowController extends BaseApiController
         $statusFilter = $this->request->getGet('status');
         $opdFilter = $this->request->getGet('opd');
 
-        $datasets = self::$mockDatasets;
+        $datasets = self::getStorageDatasets();
+        $allDatasets = $datasets;
         if (!empty($statusFilter)) {
             $datasets = array_values(array_filter($datasets, fn($d) => $d['status'] === $statusFilter));
         }
@@ -200,11 +239,11 @@ class WorkflowController extends BaseApiController
             'total' => count($datasets),
             'datasets' => $datasets,
             'workflow_summary' => [
-                'total_datasets' => count(self::$mockDatasets),
-                'in_draft' => count(array_filter(self::$mockDatasets, fn($d) => $d['status'] === 'DRAFT')),
-                'in_validation' => count(array_filter(self::$mockDatasets, fn($d) => in_array($d['status'], ['SUBMITTED_GIS', 'IN_VALIDATION_GIS']))),
-                'in_approval' => count(array_filter(self::$mockDatasets, fn($d) => in_array($d['status'], ['APPROVED_GIS', 'SUBMITTED_APPROVAL', 'IN_APPROVAL']))),
-                'published' => count(array_filter(self::$mockDatasets, fn($d) => $d['status'] === 'PUBLISHED')),
+                'total_datasets' => count($allDatasets),
+                'in_draft' => count(array_filter($allDatasets, fn($d) => $d['status'] === 'DRAFT')),
+                'in_validation' => count(array_filter($allDatasets, fn($d) => in_array($d['status'], ['SUBMITTED_GIS', 'IN_VALIDATION_GIS']))),
+                'in_approval' => count(array_filter($allDatasets, fn($d) => in_array($d['status'], ['APPROVED_GIS', 'SUBMITTED_APPROVAL', 'IN_APPROVAL']))),
+                'published' => count(array_filter($allDatasets, fn($d) => $d['status'] === 'PUBLISHED')),
             ]
         ], 'Daftar dataset workflow berhasil diambil.');
     }
@@ -227,8 +266,9 @@ class WorkflowController extends BaseApiController
         $catatan = trim($input['catatan'] ?? 'Transisi status berhasil dicatat');
         $actorRole = trim($input['actor_role'] ?? 'superadmin');
 
+        $datasets = self::getStorageDatasets();
         $found = false;
-        foreach (self::$mockDatasets as &$dataset) {
+        foreach ($datasets as &$dataset) {
             if ($dataset['id'] === $datasetId) {
                 $dataset['status'] = $newStatus;
                 $dataset['updated_at'] = date('Y-m-d H:i:s');
@@ -242,6 +282,8 @@ class WorkflowController extends BaseApiController
             return $this->respondError('Dataset dengan ID tersebut tidak ditemukan.', 404);
         }
 
+        self::saveStorageDatasets($datasets);
+
         return $this->respondSuccess([
             'dataset_id' => $datasetId,
             'status' => $newStatus,
@@ -252,12 +294,211 @@ class WorkflowController extends BaseApiController
     }
 
     /**
+     * CRUD Dataset: Tambah Dataset Spasial Baru
+     */
+    public function createDataset(): ResponseInterface
+    {
+        try {
+            $input = $this->request->getJSON(true) ?? [];
+        } catch (\Throwable) {
+            $input = [];
+        }
+        if (empty($input)) {
+            $input = $this->request->getPost() ?? [];
+        }
+
+        $namaDataset = trim($input['nama_dataset'] ?? '');
+        $kodeDataset = strtoupper(trim($input['kode_dataset'] ?? ''));
+        $kategori = trim($input['kategori'] ?? 'infrastruktur_pu');
+        $namaKategori = trim($input['nama_kategori'] ?? 'Infrastruktur');
+        $opd = trim($input['opd'] ?? 'Dinas Pekerjaan Umum dan Penataan Ruang');
+        $kodeOpd = strtoupper(trim($input['kode_opd'] ?? 'DPUPR'));
+        $tipeGeom = trim($input['tipe_geometri'] ?? 'Point');
+        $kecamatan = trim($input['kecamatan'] ?? 'Amurang');
+        $deskripsi = trim($input['deskripsi'] ?? '');
+        $submittedBy = trim($input['submitted_by'] ?? 'Operator OPD');
+        $jumlahFitur = (int)($input['jumlah_fitur'] ?? 1);
+
+        if (empty($namaDataset)) {
+            return $this->respondError('Nama dataset wajib diisi.', 400);
+        }
+
+        if (empty($kodeDataset)) {
+            $cleanName = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $namaDataset), 0, 8));
+            $kodeDataset = $kodeOpd . '-' . ($cleanName ?: 'SET') . '-' . date('Y');
+        }
+
+        $datasets = self::getStorageDatasets();
+        $maxId = 100;
+        foreach ($datasets as $d) {
+            if ($d['id'] > $maxId) {
+                $maxId = $d['id'];
+            }
+        }
+        $newId = $maxId + 1;
+
+        $newDataset = [
+            'id' => $newId,
+            'kode_dataset' => $kodeDataset,
+            'nama_dataset' => $namaDataset,
+            'kategori' => $kategori,
+            'nama_kategori' => $namaKategori,
+            'opd' => $opd,
+            'kode_opd' => $kodeOpd,
+            'tipe_geometri' => in_array($tipeGeom, ['Point', 'LineString', 'Polygon']) ? $tipeGeom : 'Point',
+            'jumlah_fitur' => $jumlahFitur,
+            'status' => 'DRAFT',
+            'kecamatan' => $kecamatan,
+            'crs' => 'EPSG:4326',
+            'submitted_by' => $submittedBy,
+            'updated_at' => date('Y-m-d H:i:s'),
+            'deskripsi' => $deskripsi,
+            'catatan_validasi' => 'Draft awal dibuat oleh ' . $submittedBy
+        ];
+
+        $datasets[] = $newDataset;
+        self::saveStorageDatasets($datasets);
+
+        return $this->respondSuccess($newDataset, "Dataset '{$namaDataset}' berhasil dibuat dengan status DRAFT.");
+    }
+
+    /**
+     * CRUD Dataset: Update Informasi Dataset
+     */
+    public function updateDataset(): ResponseInterface
+    {
+        try {
+            $input = $this->request->getJSON(true) ?? [];
+        } catch (\Throwable) {
+            $input = [];
+        }
+        if (empty($input)) {
+            $input = $this->request->getPost() ?? [];
+        }
+
+        $datasetId = (int)($input['id'] ?? 0);
+        $namaDataset = trim($input['nama_dataset'] ?? '');
+        $deskripsi = trim($input['deskripsi'] ?? '');
+        $kecamatan = trim($input['kecamatan'] ?? '');
+        $kategori = trim($input['kategori'] ?? '');
+        $namaKategori = trim($input['nama_kategori'] ?? '');
+        $tipeGeom = trim($input['tipe_geometri'] ?? '');
+        $actorRole = trim($input['actor_role'] ?? 'operator_opd');
+
+        $datasets = self::getStorageDatasets();
+        foreach ($datasets as &$dataset) {
+            if ($dataset['id'] === $datasetId) {
+                if (!in_array($dataset['status'], ['DRAFT', 'REJECTED_GIS']) && !in_array($actorRole, ['superadmin', 'admin_gis'])) {
+                    return $this->respondError("Dataset dalam status {$dataset['status']} tidak dapat diubah secara langsung.", 403);
+                }
+
+                if (!empty($namaDataset)) $dataset['nama_dataset'] = $namaDataset;
+                if (!empty($deskripsi)) $dataset['deskripsi'] = $deskripsi;
+                if (!empty($kecamatan)) $dataset['kecamatan'] = $kecamatan;
+                if (!empty($kategori)) $dataset['kategori'] = $kategori;
+                if (!empty($namaKategori)) $dataset['nama_kategori'] = $namaKategori;
+                if (!empty($tipeGeom)) $dataset['tipe_geometri'] = $tipeGeom;
+                $dataset['updated_at'] = date('Y-m-d H:i:s');
+
+                self::saveStorageDatasets($datasets);
+                return $this->respondSuccess($dataset, "Dataset ID #{$datasetId} berhasil diperbarui.");
+            }
+        }
+
+        return $this->respondError('Dataset tidak ditemukan.', 404);
+    }
+
+    /**
+     * CRUD Dataset: Hapus Dataset Draft
+     */
+    public function deleteDataset(): ResponseInterface
+    {
+        try {
+            $input = $this->request->getJSON(true) ?? [];
+        } catch (\Throwable) {
+            $input = [];
+        }
+        if (empty($input)) {
+            $input = $this->request->getPost() ?? [];
+        }
+
+        $datasetId = (int)($input['id'] ?? 0);
+        $actorRole = trim($input['actor_role'] ?? 'operator_opd');
+
+        $datasets = self::getStorageDatasets();
+        $targetKey = null;
+        foreach ($datasets as $key => $dataset) {
+            if ($dataset['id'] === $datasetId) {
+                if ($dataset['status'] !== 'DRAFT' && $actorRole !== 'superadmin') {
+                    return $this->respondError("Hanya dataset berstatus DRAFT yang dapat dihapus. Status dataset saat ini: {$dataset['status']}.", 403);
+                }
+                $targetKey = $key;
+                break;
+            }
+        }
+
+        if ($targetKey === null) {
+            return $this->respondError('Dataset tidak ditemukan.', 404);
+        }
+
+        $deletedName = $datasets[$targetKey]['nama_dataset'];
+        unset($datasets[$targetKey]);
+        $datasets = array_values($datasets);
+        self::saveStorageDatasets($datasets);
+
+        return $this->respondSuccess([
+            'id' => $datasetId,
+            'nama_dataset' => $deletedName
+        ], "Dataset '{$deletedName}' berhasil dihapus dari sistem.");
+    }
+
+    /**
+     * Modul Superadmin: Hapus Versi Data Dasar Tidak Aktif
+     */
+    public function deleteDataDasar(): ResponseInterface
+    {
+        try {
+            $input = $this->request->getJSON(true) ?? [];
+        } catch (\Throwable) {
+            $input = [];
+        }
+        if (empty($input)) {
+            $input = $this->request->getPost() ?? [];
+        }
+
+        $id = (int)($input['id'] ?? 0);
+        $versions = self::getStorageDataDasar();
+        $targetKey = null;
+        foreach ($versions as $key => $v) {
+            if ($v['id'] === $id) {
+                if ($v['status'] === 'AKTIF') {
+                    return $this->respondError("Versi aktif ({$v['versi']}) tidak dapat dihapus karena menjadi rujukan utama batas wilayah.", 403);
+                }
+                $targetKey = $key;
+                break;
+            }
+        }
+
+        if ($targetKey === null) {
+            return $this->respondError('Data versi batas wilayah tidak ditemukan.', 404);
+        }
+
+        $deletedLabel = $versions[$targetKey]['label_tipe'] . ' (' . $versions[$targetKey]['versi'] . ')';
+        unset($versions[$targetKey]);
+        $versions = array_values($versions);
+        self::saveStorageDataDasar($versions);
+
+        return $this->respondSuccess(['id' => $id], "Berkas data dasar '{$deletedLabel}' berhasil dihapus.");
+    }
+
+    /**
      * Modul Superadmin: Daftar Versi Data Dasar Geospasial (Batas Administrasi)
      */
     public function dataDasar(): ResponseInterface
     {
+        $versions = self::getStorageDataDasar();
         return $this->respondSuccess([
-            'versions' => self::$dataDasarVersions,
+            'versions' => $versions,
             'active_versions' => [
                 'kabupaten' => '2026.1-RESMI',
                 'kecamatan' => '2026.1-RESMI',
@@ -297,12 +538,13 @@ class WorkflowController extends BaseApiController
             'features'  => $tipeData === 'KABUPATEN' ? 1 : ($tipeData === 'KECAMATAN' ? 17 : 177)
         ];
 
-        $newId = count(self::$dataDasarVersions) + 1;
+        $versions = self::getStorageDataDasar();
+        $newId = count($versions) + 1;
         $newVersion = [
             'id' => $newId,
             'tipe_data' => $tipeData,
             'label_tipe' => 'Batas ' . ucfirst(strtolower($tipeData)) . ' Minahasa Selatan (Baru)',
-            'versi' => date('Y') . '.' . (count(self::$dataDasarVersions) + 1) . '-VERIF',
+            'versi' => date('Y') . '.' . (count($versions) + 1) . '-VERIF',
             'nama_file_zip' => $namaFile,
             'sumber_resmi' => $sumberResmi,
             'tahun_referensi' => $tahunReferensi,
@@ -314,7 +556,8 @@ class WorkflowController extends BaseApiController
             'catatan' => 'Hasil verifikasi otomatis: 4 komponen SHP lengkap, proyeksi WGS84 terverifikasi.'
         ];
 
-        self::$dataDasarVersions[] = $newVersion;
+        $versions[] = $newVersion;
+        self::saveStorageDataDasar($versions);
 
         return $this->respondSuccess([
             'version_record' => $newVersion,
@@ -330,10 +573,12 @@ class WorkflowController extends BaseApiController
         $input = $this->request->getJSON(true) ?? $this->request->getPost();
         $id = (int)($input['id'] ?? 0);
 
-        foreach (self::$dataDasarVersions as &$ver) {
+        $versions = self::getStorageDataDasar();
+        foreach ($versions as &$ver) {
             if ($ver['id'] === $id) {
                 $ver['status'] = 'AKTIF';
                 $ver['activated_at'] = date('Y-m-d H:i:s');
+                self::saveStorageDataDasar($versions);
                 return $this->respondSuccess($ver, "Versi {$ver['versi']} berhasil diaktifkan sebagai acuan resmi.");
             }
         }

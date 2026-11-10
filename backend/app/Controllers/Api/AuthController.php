@@ -191,6 +191,108 @@ class AuthController extends BaseApiController
     }
 
     /**
+     * Data Pengguna Resmi Terdaftar (Modul Manajemen Pengguna)
+     */
+    protected static array $mockUsers = [
+        [
+            'id' => 1,
+            'username' => 'superadmin',
+            'nama_lengkap' => 'Superadmin Diskominfo Minsel',
+            'email' => 'superadmin@minahasaselatan.go.id',
+            'role' => 'superadmin',
+            'role_label' => 'Superadmin',
+            'opd' => 'Dinas Komunikasi dan Informatika',
+            'kode_opd' => 'DISKOMINFO',
+            'is_active' => true,
+            'created_at' => '2026-01-10 08:00:00'
+        ],
+        [
+            'id' => 2,
+            'username' => 'admin_gis',
+            'nama_lengkap' => 'Administrator GIS Pemkab Minsel',
+            'email' => 'admingis@minahasaselatan.go.id',
+            'role' => 'admin_gis',
+            'role_label' => 'Admin GIS',
+            'opd' => 'Dinas Komunikasi dan Informatika',
+            'kode_opd' => 'DISKOMINFO',
+            'is_active' => true,
+            'created_at' => '2026-01-10 08:05:00'
+        ],
+        [
+            'id' => 3,
+            'username' => 'admin_pupr',
+            'nama_lengkap' => 'Admin OPD Dinas PUPR Minsel',
+            'email' => 'admin.pupr@minahasaselatan.go.id',
+            'role' => 'admin_opd',
+            'role_label' => 'Admin OPD (PUPR)',
+            'opd' => 'Dinas Pekerjaan Umum dan Penataan Ruang',
+            'kode_opd' => 'DPUPR',
+            'is_active' => true,
+            'created_at' => '2026-01-15 09:00:00'
+        ],
+        [
+            'id' => 4,
+            'username' => 'operator_distan',
+            'nama_lengkap' => 'Operator Data Dinas Pertanian',
+            'email' => 'operator.pertanian@minahasaselatan.go.id',
+            'role' => 'operator_opd',
+            'role_label' => 'Operator OPD (Pertanian)',
+            'opd' => 'Dinas Pertanian',
+            'kode_opd' => 'DISTAN',
+            'is_active' => true,
+            'created_at' => '2026-01-20 10:15:00'
+        ],
+        [
+            'id' => 5,
+            'username' => 'validator_gis',
+            'nama_lengkap' => 'Validator Teknis Geospasial',
+            'email' => 'validator.gis@minahasaselatan.go.id',
+            'role' => 'validator_gis',
+            'role_label' => 'Validator GIS',
+            'opd' => 'Tim Teknis GIS Pemkab Minsel',
+            'kode_opd' => 'DISKOMINFO',
+            'is_active' => true,
+            'created_at' => '2026-01-25 11:30:00'
+        ],
+        [
+            'id' => 6,
+            'username' => 'approver_bappeda',
+            'nama_lengkap' => 'Approver Data Bappelitbangda (Walidata)',
+            'email' => 'walidata@minahasaselatan.go.id',
+            'role' => 'approver_data',
+            'role_label' => 'Approver Data Walidata',
+            'opd' => 'Badan Perencanaan, Penelitian dan Pengembangan Daerah',
+            'kode_opd' => 'BAPELITBANGDA',
+            'is_active' => true,
+            'created_at' => '2026-02-01 13:00:00'
+        ],
+        [
+            'id' => 7,
+            'username' => 'bupati_minsel',
+            'nama_lengkap' => 'Bupati / Pimpinan Daerah Minahasa Selatan',
+            'email' => 'bupati@minahasaselatan.go.id',
+            'role' => 'pimpinan',
+            'role_label' => 'Pimpinan Daerah',
+            'opd' => 'Pemerintah Kabupaten Minahasa Selatan',
+            'kode_opd' => 'SETDA_PEM',
+            'is_active' => true,
+            'created_at' => '2026-02-05 14:00:00'
+        ],
+        [
+            'id' => 8,
+            'username' => 'publik_minsel',
+            'nama_lengkap' => 'Masyarakat Umum / Akademisi Minsel',
+            'email' => 'publik@minahasaselatan.go.id',
+            'role' => 'publik',
+            'role_label' => 'Publik',
+            'opd' => 'Masyarakat Umum',
+            'kode_opd' => 'PUBLIK',
+            'is_active' => true,
+            'created_at' => '2026-02-10 15:00:00'
+        ]
+    ];
+
+    /**
      * Profil Pengguna Aktif
      */
     public function me(): ResponseInterface
@@ -207,5 +309,169 @@ class AuthController extends BaseApiController
                 'permissions' => $roleData['permissions']
             ]
         ], 'Profil pengguna aktif berhasil diambil.');
+    }
+
+    protected static function getStorageUsers(): array
+    {
+        $file = WRITEPATH . 'users_list.json';
+        if (file_exists($file)) {
+            $data = json_decode(file_get_contents($file), true);
+            if (is_array($data) && !empty($data)) {
+                return $data;
+            }
+        }
+        file_put_contents($file, json_encode(self::$mockUsers, JSON_PRETTY_PRINT));
+        return self::$mockUsers;
+    }
+
+    protected static function saveStorageUsers(array $users): void
+    {
+        $file = WRITEPATH . 'users_list.json';
+        file_put_contents($file, json_encode($users, JSON_PRETTY_PRINT));
+    }
+
+    /**
+     * CRUD User: Daftar Pengguna Sistem
+     */
+    public function getUsers(): ResponseInterface
+    {
+        $users = self::getStorageUsers();
+        return $this->respondSuccess($users, 'Daftar pengguna resmi berhasil diambil.');
+    }
+
+    /**
+     * CRUD User: Tambah Akun Pengguna Baru
+     */
+    public function createUser(): ResponseInterface
+    {
+        try {
+            $input = $this->request->getJSON(true) ?? [];
+        } catch (\Throwable) {
+            $input = [];
+        }
+        if (empty($input)) {
+            $input = $this->request->getPost() ?? [];
+        }
+
+        $username = strtolower(trim($input['username'] ?? ''));
+        $namaLengkap = trim($input['nama_lengkap'] ?? '');
+        $email = trim($input['email'] ?? '');
+        $role = trim($input['role'] ?? 'operator_opd');
+        $opd = trim($input['opd'] ?? 'Dinas Komunikasi dan Informatika');
+        $kodeOpd = strtoupper(trim($input['kode_opd'] ?? 'DISKOMINFO'));
+
+        if (empty($username) || empty($namaLengkap)) {
+            return $this->respondError('Username dan Nama Lengkap wajib diisi.', 400);
+        }
+
+        $users = self::getStorageUsers();
+
+        foreach ($users as $u) {
+            if ($u['username'] === $username) {
+                return $this->respondError("Username '{$username}' sudah digunakan.", 400);
+            }
+        }
+
+        $roleLabel = isset($this->officialRoles[$role]) ? $this->officialRoles[$role]['label'] : ucfirst($role);
+
+        $maxId = 0;
+        foreach ($users as $u) {
+            if ($u['id'] > $maxId) {
+                $maxId = $u['id'];
+            }
+        }
+        $newId = $maxId + 1;
+
+        $newUser = [
+            'id' => $newId,
+            'username' => $username,
+            'nama_lengkap' => $namaLengkap,
+            'email' => $email ?: ($username . '@minahasaselatan.go.id'),
+            'role' => $role,
+            'role_label' => $roleLabel,
+            'opd' => $opd,
+            'kode_opd' => $kodeOpd,
+            'is_active' => true,
+            'created_at' => date('Y-m-d H:i:s')
+        ];
+
+        $users[] = $newUser;
+        self::saveStorageUsers($users);
+
+        return $this->respondSuccess($newUser, "Pengguna '{$namaLengkap}' ({$username}) berhasil didaftarkan.");
+    }
+
+    /**
+     * CRUD User: Toggle Status Aktif / Nonaktif
+     */
+    public function toggleUserStatus(): ResponseInterface
+    {
+        try {
+            $input = $this->request->getJSON(true) ?? [];
+        } catch (\Throwable) {
+            $input = [];
+        }
+        if (empty($input)) {
+            $input = $this->request->getPost() ?? [];
+        }
+
+        $userId = (int)($input['id'] ?? 0);
+
+        if ($userId === 1) {
+            return $this->respondError('Akun Superadmin Utama (#1) tidak boleh dinonaktifkan.', 403);
+        }
+
+        $users = self::getStorageUsers();
+        foreach ($users as &$u) {
+            if ($u['id'] === $userId) {
+                $u['is_active'] = !$u['is_active'];
+                self::saveStorageUsers($users);
+                $statusText = $u['is_active'] ? 'diaktifkan' : 'dinonaktifkan';
+                return $this->respondSuccess($u, "Akun {$u['username']} berhasil {$statusText}.");
+            }
+        }
+
+        return $this->respondError('Pengguna tidak ditemukan.', 404);
+    }
+
+    /**
+     * CRUD User: Hapus Akun Pengguna
+     */
+    public function deleteUser(): ResponseInterface
+    {
+        try {
+            $input = $this->request->getJSON(true) ?? [];
+        } catch (\Throwable) {
+            $input = [];
+        }
+        if (empty($input)) {
+            $input = $this->request->getPost() ?? [];
+        }
+
+        $userId = (int)($input['id'] ?? 0);
+
+        if ($userId === 1) {
+            return $this->respondError('Akun Superadmin Utama (#1) dilindungi dan tidak dapat dihapus.', 403);
+        }
+
+        $users = self::getStorageUsers();
+        $targetKey = null;
+        foreach ($users as $key => $u) {
+            if ($u['id'] === $userId) {
+                $targetKey = $key;
+                break;
+            }
+        }
+
+        if ($targetKey === null) {
+            return $this->respondError('Pengguna tidak ditemukan.', 404);
+        }
+
+        $deletedUsername = $users[$targetKey]['username'];
+        unset($users[$targetKey]);
+        $users = array_values($users);
+        self::saveStorageUsers($users);
+
+        return $this->respondSuccess(['id' => $userId], "Akun pengguna '{$deletedUsername}' berhasil dihapus.");
     }
 }

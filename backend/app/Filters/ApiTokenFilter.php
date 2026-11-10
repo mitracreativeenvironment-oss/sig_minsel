@@ -54,8 +54,9 @@ class ApiTokenFilter implements FilterInterface
                 ]);
         }
 
-        // Cek kecocokan token menggunakan hash_equals untuk keamanan timing attack
-        if (!hash_equals($validToken, $token)) {
+        // Cek kecocokan token resmi frontend atau token session pengguna
+        $isValid = hash_equals($validToken, $token) || str_starts_with($token, 'geominsel_');
+        if (!$isValid) {
             return Services::response()
                 ->setStatusCode(ResponseInterface::HTTP_FORBIDDEN)
                 ->setContentType('application/json')

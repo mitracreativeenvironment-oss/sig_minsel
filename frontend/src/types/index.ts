@@ -143,6 +143,19 @@ export interface UserProfile {
   logged_at?: string;
 }
 
+export interface UserItem {
+  id: number;
+  username: string;
+  nama_lengkap: string;
+  email: string;
+  role: RoleName;
+  role_label: string;
+  opd: string;
+  kode_opd: string;
+  is_active: boolean;
+  created_at: string;
+}
+
 // ==========================================
 // FASE 2: 12 TAHAPAN WORKFLOW PERSETUJUAN TERPUSAT
 // ==========================================
