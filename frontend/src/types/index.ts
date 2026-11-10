@@ -202,6 +202,13 @@ export interface DatasetItem {
   updated_at: string;
   deskripsi?: string;
   catatan_validasi?: string;
+  has_shp_file?: boolean;
+  file_name?: string;
+  file_path?: string;
+  file_size?: number;
+  file_size_formatted?: string;
+  shp_components?: string[];
+  bbox?: { x_min: number; y_min: number; x_max: number; y_max: number };
 }
 
 // ==========================================

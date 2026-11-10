@@ -195,7 +195,7 @@ export const sigApi = {
     return request('/admin/data-dasar');
   },
 
-  async uploadDataDasar(payload: {
+  async uploadDataDasar(payload: FormData | {
     tipe_data: string;
     sumber_resmi?: string;
     tahun_referensi?: number;
@@ -207,9 +207,10 @@ export const sigApi = {
     };
     message: string;
   }> {
+    const isFormData = payload instanceof FormData;
     return request('/admin/data-dasar/upload', {
       method: 'POST',
-      body: JSON.stringify(payload)
+      body: isFormData ? payload : JSON.stringify(payload)
     });
   },
 
@@ -228,7 +229,7 @@ export const sigApi = {
   },
 
   // ==========================================
-  // CRUD DATASET SEKTORAL
+  // CRUD DATASET SEKTORAL & UPLOAD SHP
   // ==========================================
 
   async createDataset(payload: {
@@ -248,6 +249,58 @@ export const sigApi = {
       method: 'POST',
       body: JSON.stringify(payload)
     });
+  },
+
+  async uploadShpDataset(formData: FormData): Promise<{
+    data: {
+      dataset: DatasetItem;
+      validation_report: any;
+    };
+    message: string;
+  }> {
+    return request('/workflow/datasets/upload-shp', {
+      method: 'POST',
+      body: formData
+    });
+  },
+
+  async reuploadShpDataset(formData: FormData): Promise<{
+    data: {
+      dataset: DatasetItem;
+      validation_report: any;
+    };
+    message: string;
+  }> {
+    return request('/workflow/datasets/reupload-shp', {
+      method: 'POST',
+      body: formData
+    });
+  },
+
+  async downloadShpDataset(datasetId: number, fileName?: string): Promise<void> {
+    const url = `${API_BASE_URL}/workflow/datasets/download/${datasetId}`;
+    const res = await fetch(url, {
+      headers: {
+        'X-API-TOKEN': API_TOKEN
+      }
+    });
+    if (!res.ok) {
+      let msg = 'Gagal mengunduh berkas Shapefile';
+      try {
+        const err = await res.json();
+        if (err.message) msg = err.message;
+      } catch {}
+      throw new Error(msg);
+    }
+    const blob = await res.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = fileName || `dataset_${datasetId}_shp.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(blobUrl);
   },
 
   async updateDataset(payload: {

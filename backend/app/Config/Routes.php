@@ -39,10 +39,13 @@ $routes->group('spasials', static function ($routes) {
     $routes->get('layer/(:segment)', 'Api\SpasialController::getLayer/$1');
     $routes->get('objek/(:num)', 'Api\SpasialController::getObjek/$1');
 
-    // Alur Persetujuan Terpusat (Workflow 12 Status Fase 2 & Dataset CRUD)
+    // Alur Persetujuan Terpusat (Workflow 12 Status Fase 2, Upload SHP & Dataset CRUD)
     $routes->get('workflow/states', 'Api\WorkflowController::states');
     $routes->get('workflow/datasets', 'Api\WorkflowController::datasets');
     $routes->post('workflow/datasets/create', 'Api\WorkflowController::createDataset');
+    $routes->post('workflow/datasets/upload-shp', 'Api\WorkflowController::uploadShpDataset');
+    $routes->post('workflow/datasets/reupload-shp', 'Api\WorkflowController::reuploadShpDataset');
+    $routes->get('workflow/datasets/download/(:num)', 'Api\WorkflowController::downloadShpDataset/$1');
     $routes->post('workflow/datasets/update', 'Api\WorkflowController::updateDataset');
     $routes->post('workflow/datasets/delete', 'Api\WorkflowController::deleteDataset');
     $routes->post('workflow/transition', 'Api\WorkflowController::transition');

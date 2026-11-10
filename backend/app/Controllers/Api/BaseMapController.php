@@ -475,3 +475,4 @@ class BaseMapController extends BaseApiController
         return $this->respondSuccess(['id' => $id], "Peta dasar '{$deletedLabel}' berhasil dihapus.");
     }
 }
+

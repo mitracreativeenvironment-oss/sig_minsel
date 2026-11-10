@@ -27,6 +27,8 @@ import {
   History,
   LogOut,
   Upload,
+  UploadCloud,
+  Download,
   CheckCircle2,
   AlertTriangle,
   FileArchive,
@@ -428,6 +430,33 @@ const isReadOnlyRole = computed(() =>
 // ==========================================
 const isCreateDatasetModalOpen = ref(false);
 const isEditDatasetModalOpen = ref(false);
+
+// SHP Dataset Upload & Management State
+const isUploadShpModalOpen = ref(false);
+const isUploadingShp = ref(false);
+const uploadShpFile = ref<File | null>(null);
+const uploadShpInputRef = ref<HTMLInputElement | null>(null);
+const uploadShpForm = ref({
+  nama_dataset: '',
+  kode_dataset: '',
+  kategori: 'infrastruktur_pu',
+  nama_kategori: 'Pekerjaan Umum & Infrastruktur',
+  opd: authStore.opdLabel || 'Dinas Pekerjaan Umum dan Penataan Ruang',
+  kode_opd: authStore.user?.kode_opd || 'DPUPR',
+  kecamatan: 'Seluruh Kabupaten',
+  deskripsi: ''
+});
+
+// Re-upload SHP for Revision
+const isReuploadShpModalOpen = ref(false);
+const isReuploading = ref(false);
+const reuploadTargetDataset = ref<DatasetItem | null>(null);
+const reuploadShpFile = ref<File | null>(null);
+const reuploadShpInputRef = ref<HTMLInputElement | null>(null);
+
+// Data Dasar real file state
+const dataDasarFile = ref<File | null>(null);
+const dataDasarFileInputRef = ref<HTMLInputElement | null>(null);
 const isCreateUserModalOpen = ref(false);
 const isEditUserModalOpen = ref(false);
 const isCreateOpdModalOpen = ref(false);
@@ -507,6 +536,142 @@ async function handleCreateDataset() {
     notify.success('Dataset Berhasil Dibuat', res.message || 'Dataset masuk ke katalog dengan status DRAFT.');
   } catch (e: any) {
     notify.error('Gagal Membuat Dataset', e.message);
+  }
+}
+
+function openUploadShpModal() {
+  uploadShpFile.value = null;
+  if (uploadShpInputRef.value) uploadShpInputRef.value.value = '';
+  uploadShpForm.value = {
+    nama_dataset: '',
+    kode_dataset: 'MNSL-SHP-' + Math.floor(1000 + Math.random() * 9000),
+    kategori: 'infrastruktur_pu',
+    nama_kategori: 'Pekerjaan Umum & Infrastruktur',
+    opd: authStore.opdLabel || 'Dinas Pekerjaan Umum dan Penataan Ruang',
+    kode_opd: authStore.user?.kode_opd || 'DPUPR',
+    kecamatan: 'Seluruh Kabupaten',
+    deskripsi: ''
+  };
+  isUploadShpModalOpen.value = true;
+}
+
+function onShpFileSelected(event: Event) {
+  const target = event.target as HTMLInputElement;
+  if (target.files && target.files.length > 0) {
+    const file = target.files[0];
+    if (!file.name.toLowerCase().endsWith('.zip')) {
+      notify.error('Format Tidak Sesuai', 'Harap pilih berkas arsip ZIP (.zip) yang memuat berkas .shp, .shx, .dbf, dan .prj');
+      target.value = '';
+      return;
+    }
+    uploadShpFile.value = file;
+    if (!uploadShpForm.value.nama_dataset) {
+      const baseName = file.name.replace(/\.[^/.]+$/, '').replace(/[_|-]/g, ' ');
+      uploadShpForm.value.nama_dataset = baseName.charAt(0).toUpperCase() + baseName.slice(1);
+    }
+  }
+}
+
+async function handleUploadShpDataset() {
+  if (!uploadShpFile.value) {
+    notify.error('Berkas Belum Dipilih', 'Silakan pilih berkas ZIP Shapefile (.zip) terlebih dahulu.');
+    return;
+  }
+
+  isUploadingShp.value = true;
+  try {
+    const fd = new FormData();
+    fd.append('shp_file', uploadShpFile.value);
+    fd.append('nama_dataset', uploadShpForm.value.nama_dataset);
+    fd.append('kode_dataset', uploadShpForm.value.kode_dataset);
+    fd.append('kategori', uploadShpForm.value.kategori);
+    fd.append('nama_kategori', uploadShpForm.value.nama_kategori);
+    fd.append('opd', uploadShpForm.value.opd);
+    fd.append('kode_opd', uploadShpForm.value.kode_opd);
+    fd.append('kecamatan', uploadShpForm.value.kecamatan);
+    fd.append('deskripsi', uploadShpForm.value.deskripsi);
+    fd.append('submitted_by', authStore.user?.nama_lengkap || 'Operator OPD');
+
+    const res = await sigApi.uploadShpDataset(fd);
+    datasets.value.unshift(res.data.dataset);
+    isUploadShpModalOpen.value = false;
+    notify.success('Upload SHP Berhasil', res.message || 'Dataset Shapefile berhasil divalidasi dan tersimpan sebagai DRAFT.');
+  } catch (e: any) {
+    notify.error('Gagal Upload SHP', e.message);
+  } finally {
+    isUploadingShp.value = false;
+  }
+}
+
+function openReuploadShpModal(d: DatasetItem) {
+  reuploadTargetDataset.value = d;
+  reuploadShpFile.value = null;
+  if (reuploadShpInputRef.value) reuploadShpInputRef.value.value = '';
+  isReuploadShpModalOpen.value = true;
+}
+
+function onReuploadShpFileSelected(event: Event) {
+  const target = event.target as HTMLInputElement;
+  if (target.files && target.files.length > 0) {
+    const file = target.files[0];
+    if (!file.name.toLowerCase().endsWith('.zip')) {
+      notify.error('Format Tidak Sesuai', 'Harap pilih berkas arsip ZIP (.zip)');
+      target.value = '';
+      return;
+    }
+    reuploadShpFile.value = file;
+  }
+}
+
+async function handleReuploadShpDataset() {
+  if (!reuploadTargetDataset.value || !reuploadShpFile.value) {
+    notify.error('Berkas Belum Dipilih', 'Silakan pilih berkas ZIP Shapefile revisi.');
+    return;
+  }
+
+  isReuploading.value = true;
+  try {
+    const fd = new FormData();
+    fd.append('id', String(reuploadTargetDataset.value.id));
+    fd.append('shp_file', reuploadShpFile.value);
+    fd.append('actor_role', authStore.currentRole);
+    fd.append('submitted_by', authStore.user?.nama_lengkap || 'Operator OPD');
+
+    const res = await sigApi.reuploadShpDataset(fd);
+    const target = datasets.value.find(d => d.id === reuploadTargetDataset.value?.id);
+    if (target) {
+      Object.assign(target, res.data.dataset);
+    }
+    isReuploadShpModalOpen.value = false;
+    notify.success('Revisi SHP Berhasil Diunggah', res.message || 'Dataset telah diperbarui.');
+  } catch (e: any) {
+    notify.error('Gagal Upload Revisi', e.message);
+  } finally {
+    isReuploading.value = false;
+  }
+}
+
+async function handleDownloadShp(d: DatasetItem) {
+  try {
+    notify.info('Mengunduh...', `Memulai unduhan berkas Shapefile ${d.nama_dataset}`);
+    await sigApi.downloadShpDataset(d.id, d.file_name);
+    notify.success('Unduhan Selesai', `Berkas Shapefile ${d.nama_dataset} berhasil diunduh.`);
+  } catch (e: any) {
+    notify.error('Gagal Mengunduh', e.message);
+  }
+}
+
+function onDataDasarFileSelected(event: Event) {
+  const target = event.target as HTMLInputElement;
+  if (target.files && target.files.length > 0) {
+    const file = target.files[0];
+    if (!file.name.toLowerCase().endsWith('.zip')) {
+      notify.error('Format Tidak Sesuai', 'Pilih berkas arsip ZIP (.zip) batas wilayah');
+      target.value = '';
+      return;
+    }
+    dataDasarFile.value = file;
+    uploadFileName.value = file.name;
   }
 }
 
@@ -1435,12 +1600,22 @@ async function handleUploadShpWithConfirm() {
 
   isUploading.value = true;
   try {
-    const res = await sigApi.uploadDataDasar({
-      tipe_data: uploadTipe.value,
-      sumber_resmi: uploadSumber.value,
-      tahun_referensi: uploadTahun.value,
-      nama_file: uploadFileName.value
-    });
+    let res;
+    if (dataDasarFile.value) {
+      const fd = new FormData();
+      fd.append('shp_file', dataDasarFile.value);
+      fd.append('tipe_data', uploadTipe.value);
+      fd.append('sumber_resmi', uploadSumber.value);
+      fd.append('tahun_referensi', String(uploadTahun.value));
+      res = await sigApi.uploadDataDasar(fd);
+    } else {
+      res = await sigApi.uploadDataDasar({
+        tipe_data: uploadTipe.value,
+        sumber_resmi: uploadSumber.value,
+        tahun_referensi: uploadTahun.value,
+        nama_file: uploadFileName.value
+      });
+    }
     lastValidationReport.value = res.data.validation_report;
     dataDasarList.value.push(res.data.version_record);
     notify.success('Upload SHP Berhasil', res.message || 'Paket SHP tervalidasi EPSG:4326.');
@@ -1448,6 +1623,7 @@ async function handleUploadShpWithConfirm() {
     notify.error('Gagal Upload SHP', e.message || 'Verifikasi paket SHP gagal');
   } finally {
     isUploading.value = false;
+    dataDasarFile.value = null;
   }
 }
 
@@ -1934,16 +2110,28 @@ onMounted(() => {
 
             <!-- Controls: Search, Filters, and View Switcher -->
             <div class="header-controls-cluster">
-              <!-- Create Dataset Button (Role Guarded) -->
+              <!-- Upload SHP File Button (Role Guarded) -->
               <button
                 v-if="canCreateDataset"
                 type="button"
                 class="btn-create-dataset"
+                @click="openUploadShpModal"
+                title="Unggah Paket Shapefile ZIP (.shp, .shx, .dbf, .prj)"
+              >
+                <UploadCloud :size="15" />
+                <span>Upload SHP</span>
+              </button>
+
+              <!-- Create Dataset Manual Button -->
+              <button
+                v-if="canCreateDataset"
+                type="button"
+                class="btn-box-action"
                 @click="openCreateDatasetModal"
-                title="Tambah Dataset Spasial Baru (Draft)"
+                title="Tambah Metadata Dataset Manual (Form)"
               >
                 <Plus :size="15" />
-                <span>Tambah Dataset</span>
+                <span>Tambah Manual</span>
               </button>
 
               <!-- View Mode Switcher -->
@@ -2117,12 +2305,40 @@ onMounted(() => {
                 <span class="chip chip-crs">
                   <span>{{ d.crs || 'EPSG:4326' }}</span>
                 </span>
+                <span v-if="d.has_shp_file || d.file_name" class="chip chip-file" :title="d.file_name || 'Paket SHP ZIP'">
+                  <FileArchive :size="11" />
+                  <span>{{ d.file_size_formatted || 'SHP' }}</span>
+                </span>
               </div>
 
               <div class="bento-footer">
                 <span class="bento-cat-label">{{ d.nama_kategori }}</span>
 
                 <div class="action-btn-group">
+                  <!-- Unduh SHP ZIP jika tersedia -->
+                  <button
+                    v-if="d.has_shp_file || d.file_name || d.file_path"
+                    type="button"
+                    class="btn-act btn-download"
+                    @click="handleDownloadShp(d)"
+                    title="Unduh Berkas Asli Shapefile (ZIP)"
+                  >
+                    <Download :size="12" />
+                    <span>Unduh SHP</span>
+                  </button>
+
+                  <!-- Upload Ulang Revisi SHP (Jika DRAFT atau REJECTED_GIS) -->
+                  <button
+                    v-if="canEditDataset(d) && (d.status === 'DRAFT' || d.status === 'REJECTED_GIS')"
+                    type="button"
+                    class="btn-act btn-reupload"
+                    @click="openReuploadShpModal(d)"
+                    title="Unggah Ulang Berkas SHP Revisi"
+                  >
+                    <UploadCloud :size="12" />
+                    <span>Revisi SHP</span>
+                  </button>
+
                   <!-- Edit Metadata (Operator/Admin OPD on Draft, or Admin GIS/Superadmin) -->
                   <button
                     v-if="canEditDataset(d)"
@@ -2223,6 +2439,30 @@ onMounted(() => {
                   </td>
                   <td>
                     <div class="action-btn-group">
+                      <!-- Unduh SHP ZIP jika tersedia -->
+                      <button
+                        v-if="d.has_shp_file || d.file_name || d.file_path"
+                        type="button"
+                        class="btn-act btn-download"
+                        @click="handleDownloadShp(d)"
+                        title="Unduh Berkas Asli Shapefile (ZIP)"
+                      >
+                        <Download :size="12" />
+                        <span>Unduh</span>
+                      </button>
+
+                      <!-- Upload Ulang Revisi SHP (Jika DRAFT atau REJECTED_GIS) -->
+                      <button
+                        v-if="canEditDataset(d) && (d.status === 'DRAFT' || d.status === 'REJECTED_GIS')"
+                        type="button"
+                        class="btn-act btn-reupload"
+                        @click="openReuploadShpModal(d)"
+                        title="Unggah Ulang Berkas SHP Revisi"
+                      >
+                        <UploadCloud :size="12" />
+                        <span>Revisi</span>
+                      </button>
+
                       <!-- Edit Metadata -->
                       <button
                         v-if="canEditDataset(d)"
@@ -2481,8 +2721,27 @@ onMounted(() => {
               </div>
 
               <div class="form-cell">
-                <label class="form-lbl">Nama Berkas ZIP</label>
-                <input v-model="uploadFileName" type="text" class="form-input-box" required />
+                <label class="form-lbl">Berkas ZIP Batas Administrasi *</label>
+                <div class="file-picker-row">
+                  <input
+                    ref="dataDasarFileInputRef"
+                    type="file"
+                    accept=".zip"
+                    class="hidden-file-input"
+                    @change="onDataDasarFileSelected"
+                  />
+                  <button
+                    type="button"
+                    class="btn-choose-file"
+                    @click="dataDasarFileInputRef?.click()"
+                  >
+                    <UploadCloud :size="14" />
+                    <span>Pilih Berkas ZIP</span>
+                  </button>
+                  <span class="file-chosen-text" :title="uploadFileName">
+                    {{ uploadFileName }}
+                  </span>
+                </div>
               </div>
 
               <div class="form-submit-cell">
@@ -4596,6 +4855,165 @@ onMounted(() => {
             <button type="submit" class="btn-modal-submit">
               <CheckCircle2 :size="15" />
               <span>Simpan Perubahan</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- MODAL 15: UPLOAD PAKET SHAPEFILE (SHP ZIP)                     -->
+    <!-- ============================================================== -->
+    <div v-if="isUploadShpModalOpen" class="modal-backdrop" @click.self="isUploadShpModalOpen = false">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <UploadCloud :size="18" class="text-blue" />
+            <h3 class="modal-title">Upload Paket Shapefile (SHP ZIP)</h3>
+          </div>
+          <button type="button" class="btn-close-modal" @click="isUploadShpModalOpen = false">
+            <X :size="16" />
+          </button>
+        </div>
+
+        <form class="modal-form" @submit.prevent="handleUploadShpDataset">
+          <!-- Dropzone Berkas ZIP -->
+          <div class="shp-dropzone" :class="{ 'has-file': !!uploadShpFile }" @click="uploadShpInputRef?.click()">
+            <input
+              ref="uploadShpInputRef"
+              type="file"
+              accept=".zip"
+              class="hidden-file-input"
+              @change="onShpFileSelected"
+            />
+            <div v-if="!uploadShpFile" class="dropzone-empty">
+              <UploadCloud :size="36" class="text-blue" />
+              <p class="dropzone-title">Klik atau Seret Berkas ZIP Shapefile ke Sini</p>
+              <p class="dropzone-hint">
+                Format <code>.zip</code> harus memuat 4 komponen utama: <code>.shp</code>, <code>.shx</code>, <code>.dbf</code>, dan <code>.prj</code> (WGS84).
+              </p>
+            </div>
+            <div v-else class="dropzone-selected">
+              <FileArchive :size="32" class="text-emerald" />
+              <div class="dropzone-file-info">
+                <span class="file-name">{{ uploadShpFile.name }}</span>
+                <span class="file-size font-mono">{{ (uploadShpFile.size / 1024).toFixed(1) }} KB</span>
+              </div>
+              <button type="button" class="btn-change-file" @click.stop="uploadShpFile = null">
+                <X :size="14" />
+                <span>Ganti</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Nama Dataset <span class="text-red">*</span></label>
+              <input v-model="uploadShpForm.nama_dataset" type="text" class="form-input" placeholder="Contoh: Jaringan Irigasi Sekunder" required />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Kode Unik Dataset</label>
+              <input v-model="uploadShpForm.kode_dataset" type="text" class="form-input font-mono" placeholder="MNSL-PUPR-SHP-01" />
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Kategori Tematik *</label>
+              <select v-model="uploadShpForm.kategori" class="form-select" required>
+                <option value="infrastruktur_pu">Pekerjaan Umum &amp; Infrastruktur</option>
+                <option value="pertanian">Pertanian &amp; Ketahanan Pangan</option>
+                <option value="kesehatan">Kesehatan &amp; Faskes</option>
+                <option value="pariwisata">Pariwisata &amp; Kebudayaan</option>
+                <option value="kebencanaan">Kebencanaan &amp; Titik Rawan</option>
+                <option value="pendidikan">Pendidikan &amp; Sekolah</option>
+                <option value="lingkungan">Lingkungan Hidup &amp; Kehutanan</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label class="form-label">Cakupan Wilayah</label>
+              <select v-model="uploadShpForm.kecamatan" class="form-select">
+                <option value="Seluruh Kabupaten">Seluruh Kabupaten Minahasa Selatan</option>
+                <option v-for="kec in daftarKecamatan" :key="kec" :value="kec">{{ kec }}</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label class="form-label">Deskripsi / Metadata Sumber Data</label>
+            <textarea v-model="uploadShpForm.deskripsi" class="form-textarea" rows="2" placeholder="Jelaskan instansi pembuat data, metode akuisisi survei, dan kegunaan spasial..."></textarea>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-modal-cancel" @click="isUploadShpModalOpen = false">Batal</button>
+            <button type="submit" class="btn-modal-submit" :disabled="isUploadingShp">
+              <RotateCcw v-if="isUploadingShp" :size="15" class="spin-anim" />
+              <CheckCircle2 v-else :size="15" />
+              <span>{{ isUploadingShp ? 'Memeriksa & Mengunggah...' : 'Unggah & Validasi SHP' }}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- MODAL 16: UPLOAD ULANG REVISI SHAPEFILE (SHP ZIP)             -->
+    <!-- ============================================================== -->
+    <div v-if="isReuploadShpModalOpen" class="modal-backdrop" @click.self="isReuploadShpModalOpen = false">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <UploadCloud :size="18" class="text-amber" />
+            <h3 class="modal-title">Upload Ulang Revisi Shapefile</h3>
+          </div>
+          <button type="button" class="btn-close-modal" @click="isReuploadShpModalOpen = false">
+            <X :size="16" />
+          </button>
+        </div>
+
+        <form v-if="reuploadTargetDataset" class="modal-form" @submit.prevent="handleReuploadShpDataset">
+          <div class="reupload-target-info">
+            <span class="target-name">{{ reuploadTargetDataset.nama_dataset }}</span>
+            <span class="target-meta font-mono">{{ reuploadTargetDataset.kode_dataset }} &bull; Versi Saat Ini: {{ reuploadTargetDataset.versi || 'v1.0' }} (Rev #{{ reuploadTargetDataset.revisi_ke || 1 }})</span>
+            <span class="status-pill inline-pill" :class="'st-' + reuploadTargetDataset.status.toLowerCase()">
+              {{ reuploadTargetDataset.status }}
+            </span>
+          </div>
+
+          <div class="shp-dropzone" :class="{ 'has-file': !!reuploadShpFile }" @click="reuploadShpInputRef?.click()">
+            <input
+              ref="reuploadShpInputRef"
+              type="file"
+              accept=".zip"
+              class="hidden-file-input"
+              @change="onReuploadShpFileSelected"
+            />
+            <div v-if="!reuploadShpFile" class="dropzone-empty">
+              <UploadCloud :size="36" class="text-amber" />
+              <p class="dropzone-title">Pilih Berkas ZIP Shapefile Hasil Koreksi</p>
+              <p class="dropzone-hint">
+                Sistem akan memverifikasi ulang geometri, CRS EPSG:4326, dan menaikkan nomor revisi dataset secara otomatis.
+              </p>
+            </div>
+            <div v-else class="dropzone-selected">
+              <FileArchive :size="32" class="text-emerald" />
+              <div class="dropzone-file-info">
+                <span class="file-name">{{ reuploadShpFile.name }}</span>
+                <span class="file-size font-mono">{{ (reuploadShpFile.size / 1024).toFixed(1) }} KB</span>
+              </div>
+              <button type="button" class="btn-change-file" @click.stop="reuploadShpFile = null">
+                <X :size="14" />
+                <span>Ganti</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-modal-cancel" @click="isReuploadShpModalOpen = false">Batal</button>
+            <button type="submit" class="btn-modal-submit" :disabled="isReuploading">
+              <RotateCcw v-if="isReuploading" :size="15" class="spin-anim" />
+              <CheckCircle2 v-else :size="15" />
+              <span>{{ isReuploading ? 'Memvalidasi Revisi...' : 'Simpan & Terapkan Revisi SHP' }}</span>
             </button>
           </div>
         </form>
@@ -6862,5 +7280,205 @@ onMounted(() => {
   background: rgba(15, 23, 42, 0.5);
   padding: 1px 4px;
   border-radius: 3px;
+}
+
+/* ============================================================== */
+/* SHP FILE DROPZONE & FILE PICKER STYLES                         */
+/* ============================================================== */
+.hidden-file-input {
+  display: none !important;
+}
+
+.shp-dropzone {
+  border: 2px dashed rgba(56, 189, 248, 0.35);
+  border-radius: 12px;
+  padding: 24px 16px;
+  text-align: center;
+  cursor: pointer;
+  background: rgba(15, 23, 42, 0.4);
+  transition: all 0.2s ease;
+  margin-bottom: 16px;
+}
+
+.shp-dropzone:hover {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.05);
+}
+
+.shp-dropzone.has-file {
+  border-style: solid;
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.dropzone-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.dropzone-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #f1f5f9;
+  margin: 0;
+}
+
+.dropzone-hint {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  max-width: 440px;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.dropzone-hint code {
+  color: #38bdf8;
+  background: rgba(15, 23, 42, 0.6);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.dropzone-selected {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.dropzone-file-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.dropzone-file-info .file-name {
+  font-weight: 600;
+  color: #f1f5f9;
+  font-size: 0.9rem;
+}
+
+.dropzone-file-info .file-size {
+  font-size: 0.78rem;
+  color: #38bdf8;
+}
+
+.btn-change-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-change-file:hover {
+  background: rgba(239, 68, 68, 0.25);
+  color: #fca5a5;
+}
+
+.reupload-target-info {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.reupload-target-info .target-name {
+  font-weight: 600;
+  color: #f1f5f9;
+  font-size: 0.95rem;
+}
+
+.reupload-target-info .target-meta {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.inline-pill {
+  align-self: flex-start;
+  font-size: 0.7rem;
+  padding: 2px 8px;
+}
+
+.chip-file {
+  background: rgba(56, 189, 248, 0.15) !important;
+  border: 1px solid rgba(56, 189, 248, 0.3) !important;
+  color: #38bdf8 !important;
+}
+
+.btn-download {
+  background: rgba(14, 165, 233, 0.12);
+  border: 1px solid rgba(14, 165, 233, 0.3);
+  color: #38bdf8;
+}
+
+.btn-download:hover {
+  background: rgba(14, 165, 233, 0.25);
+  color: #ffffff;
+}
+
+.btn-reupload {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #f59e0b;
+}
+
+.btn-reupload:hover {
+  background: rgba(245, 158, 11, 0.25);
+  color: #fbbf24;
+}
+
+.file-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-choose-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #38bdf8;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-choose-file:hover {
+  background: rgba(56, 189, 248, 0.25);
+  color: #ffffff;
+}
+
+.file-chosen-text {
+  font-size: 0.8rem;
+  color: #cbd5e1;
+  font-family: monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 250px;
+}
+
+.inline-file-badge {
+  color: #38bdf8;
+  font-weight: 500;
 }
 </style>
