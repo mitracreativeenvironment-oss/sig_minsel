@@ -11,6 +11,14 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 
 ---
 
+## [0.5.6] - 2026-11-10
+
+### Keterangan Perubahan
+- 3D Topografi berbasis foto nyata Minahasa Selatan dengan Heightmap Displacement dan Tekstur Albedo PBR
+- feat(3d-terrain): rekonstruksi 3D topografi realistis berbasis foto nyata minsel dengan PBR heightmap dan shader (6093067)
+
+---
+
 ## [0.5.5] - 2026-11-10
 
 ### Keterangan Perubahan
@@ -109,6 +117,7 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 - Workflow otomasi CI/CD & GitHub Releases (`.github/workflows/release.yml`, `.github/workflows/ci.yml`).
 - Skema dasar basis data spasial (tabel batas administrasi kecamatan/desa dan objek tematik).
 - Konfigurasi `.gitignore` menyeluruh untuk CI4, Vue 3, GIS, dan cPanel.
+
 
 
 
