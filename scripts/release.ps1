@@ -173,7 +173,8 @@ if (Test-Path $packageJsonPath) {
     try {
         $json = Get-Content $packageJsonPath -Raw | ConvertFrom-Json
         $json.version = $nextVersion
-        $json | ConvertTo-Json -Depth 10 | Set-Content $packageJsonPath -Encoding utf8
+        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+        [System.IO.File]::WriteAllText($packageJsonPath, ($json | ConvertTo-Json -Depth 10), $utf8NoBom)
         Write-Host " [OK] package.json diperbarui: $nextVersion" -ForegroundColor Green
     } catch {
         Write-Host " [!] Gagal update package.json: $_" -ForegroundColor Yellow

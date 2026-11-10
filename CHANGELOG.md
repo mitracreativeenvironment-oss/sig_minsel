@@ -11,6 +11,13 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 
 ---
 
+## [0.4.0] - 2026-11-10
+
+### Keterangan Perubahan
+- Fase 2: Implementasi 8 Role Utama, Workflow Persetujuan Terpusat, 28 Master Kategori Geospasial GeoMinsel, dan Modul Data Dasar SHP Superadmin
+
+---
+
 ## [0.3.0] - 2026-11-10
 
 ### Keterangan Perubahan
@@ -46,6 +53,7 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 - Workflow otomasi CI/CD & GitHub Releases (`.github/workflows/release.yml`, `.github/workflows/ci.yml`).
 - Skema dasar basis data spasial (tabel batas administrasi kecamatan/desa dan objek tematik).
 - Konfigurasi `.gitignore` menyeluruh untuk CI4, Vue 3, GIS, dan cPanel.
+
 
 
 

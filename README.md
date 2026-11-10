@@ -1,6 +1,18 @@
-# Sistem Informasi Geografis (SIG) Minahasa Selatan
+# GeoMinsel &mdash; Sistem Informasi Geografis Kabupaten Minahasa Selatan
 
-Sistem Informasi Geografis berbasis web (WebGIS) untuk Pemerintah Kabupaten Minahasa Selatan. Dirancang dengan pendekatan arsitektur ringan, performa tinggi, dan kompatibel dengan lingkungan *hosting* Apache/cPanel.
+**GeoMinsel** adalah Geoportal dan sistem pengelolaan data geospasial mandiri (*standalone*) untuk Pemerintah Kabupaten Minahasa Selatan. Dirancang dengan pendekatan arsitektur ringan, performa tinggi, dan kompatibel dengan lingkungan *hosting* Apache/cPanel.
+
+---
+
+## Ringkasan Fase Pengembangan
+
+- **Fase 1: Arsitektur Teknologi & Pondasi Data Dasar**: Vue 3, MapLibre GL JS, CodeIgniter 4 REST API, MySQL Spatial (SRID 4326), QGIS Desktop, dan Hierarki 3-Level (Kabupaten &rarr; Kecamatan &rarr; Desa).
+- **Fase 2: Role dan Kewenangan Pengguna**:
+  - **8 Role Utama**: Superadmin, Admin GIS, Admin OPD, Operator OPD, Validator GIS, Approver Data, Pimpinan/Executive Viewer, dan Publik.
+  - **Alur Persetujuan Terpusat (*Central Approval*)**: Upload OPD &rarr; Validasi Teknis GIS &rarr; Persetujuan Pusat &rarr; Publikasi Layer.
+  - **Master 28 Kategori Geospasial GeoMinsel** terbagi menurut OPD produsen data.
+  - **Modul Khusus Superadmin**: Manajemen Data Dasar Geospasial (Upload SHP ZIP Batas Administrasi resmi).
+  - Dokumen lengkap: [`docs/FASE_2_ROLE_DAN_KEWENANGAN.md`](file:///d:/sig_minsel/docs/FASE_2_ROLE_DAN_KEWENANGAN.md).
 
 ---
 

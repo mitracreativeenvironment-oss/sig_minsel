@@ -12,8 +12,8 @@ const wilayahStore = useWilayahStore();
         <Compass :size="22" />
       </div>
       <div class="brand-text">
-        <h1 class="brand-title">SIG MINAHASA SELATAN</h1>
-        <p class="brand-subtitle">Pemerintah Kabupaten Minahasa Selatan &bull; WebGIS Spasial</p>
+        <h1 class="brand-title">GEOMINSEL</h1>
+        <p class="brand-subtitle">Pemerintah Kabupaten Minahasa Selatan &bull; Geoportal & Pengelolaan Data</p>
       </div>
     </div>
 
