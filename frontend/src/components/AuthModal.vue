@@ -71,7 +71,7 @@ async function handleLogin() {
 
       <div class="auth-header">
         <div class="auth-emblem">
-          <ShieldAlert :size="24" />
+          <img src="/favicon.svg" alt="Logo Minahasa Selatan" width="32" height="32" />
         </div>
         <h2 class="auth-title">Autentikasi Pengguna GeoMinsel</h2>
         <p class="auth-subtitle">

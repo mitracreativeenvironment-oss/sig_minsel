@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 768 256" width="100%" height="100%">
+  <title>Logo Lockup GeoMinsel - The Sovereign Manguni Pin</title>
+  <defs>
+    <linearGradient id="shieldGradLA" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#0b132b" />
+    </linearGradient>
+    <linearGradient id="goldGradLA" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde047" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+    <linearGradient id="redGradLA" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ef4444" />
+      <stop offset="100%" stop-color="#b91c1c" />
+    </linearGradient>
+    <linearGradient id="azureGradLA" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+  </defs>
+
+  <!-- Left Side: Symbol Artwork (Scale ~0.85 centered at x=130) -->
+  <g transform="translate(10, 10) scale(0.92)">
+    <!-- Outer Pin Shield -->
+    <path
+      d="M 128 16 C 148 16, 172 26, 186 18 C 200 10, 206 28, 208 44 C 214 94, 212 142, 178 184 C 158 208, 138 230, 128 244 C 118 230, 98 208, 78 184 C 44 142, 42 94, 48 44 C 50 28, 56 10, 70 18 C 84 26, 108 16, 128 16 Z"
+      fill="url(#shieldGradLA)"
+      stroke="url(#goldGradLA)"
+      stroke-width="5"
+      stroke-linejoin="round"
+    />
+    <!-- Red Crest -->
+    <path
+      d="M 72 32 C 88 44, 110 38, 128 46 C 146 38, 168 44, 184 32 C 188 56, 194 92, 186 130 C 176 112, 162 102, 146 100 C 152 86, 144 74, 128 74 C 112 74, 104 86, 110 100 C 94 102, 80 112, 70 130 C 62 92, 68 56, 72 32 Z"
+      fill="url(#redGradLA)"
+    />
+    <!-- Ear Tufts -->
+    <polygon points="76,20 62,38 84,34" fill="#fde047" />
+    <polygon points="180,20 194,38 172,34" fill="#fde047" />
+    <!-- Eyes -->
+    <circle cx="94" cy="116" r="24" fill="#0b132b" stroke="#f59e0b" stroke-width="3" />
+    <circle cx="94" cy="116" r="15" fill="url(#azureGradLA)" />
+    <circle cx="94" cy="116" r="8" fill="#0f172a" />
+    <circle cx="97" cy="113" r="3" fill="#ffffff" />
+    <circle cx="162" cy="116" r="24" fill="#0b132b" stroke="#f59e0b" stroke-width="3" />
+    <circle cx="162" cy="116" r="15" fill="url(#azureGradLA)" />
+    <circle cx="162" cy="116" r="8" fill="#0f172a" />
+    <circle cx="165" cy="113" r="3" fill="#ffffff" />
+    <!-- Beak -->
+    <polygon points="128,114 116,144 128,172 140,144" fill="url(#goldGradLA)" stroke="#fde047" stroke-width="1.5" />
+    <!-- Book -->
+    <path d="M 98 178 C 112 172, 124 174, 128 178 C 132 174, 144 172, 158 178 L 156 196 C 142 191, 132 192, 128 196 C 124 192, 114 191, 100 196 Z" fill="#ffffff" />
+    <!-- Pin dot -->
+    <circle cx="128" cy="220" r="5" fill="#38bdf8" />
+  </g>
+
+  <!-- Right Side: Clean Modern Wordmark -->
+  <g transform="translate(268, 60)">
+    <!-- Primary Title: GEOMINSEL -->
+    <text x="0" y="68" font-family="'Plus Jakarta Sans', system-ui, sans-serif" font-weight="900" font-size="64" letter-spacing="3" fill="#ffffff">
+      GEO<tspan fill="#38bdf8">MINSEL</tspan>
+    </text>
+
+    <!-- Subtitle: KABUPATEN MINAHASA SELATAN -->
+    <text x="4" y="112" font-family="'Plus Jakarta Sans', system-ui, sans-serif" font-weight="700" font-size="20" letter-spacing="4" fill="#f59e0b">
+      KABUPATEN MINAHASA SELATAN
+    </text>
+
+    <!-- Micro Descriptor -->
+    <text x="4" y="142" font-family="'Plus Jakarta Sans', system-ui, sans-serif" font-weight="500" font-size="14" letter-spacing="1.5" fill="#94a3b8">
+      Sistem Informasi Geografis &#8226; Satu Data Spasial Daerah
+    </text>
+  </g>
+</svg>

@@ -11,7 +11,6 @@ import {
   MapPin,
   Users,
   History,
-  Compass,
   LogOut,
   Upload,
   CheckCircle2,
@@ -160,7 +159,7 @@ onMounted(() => {
       <div class="topbar-left">
         <div class="dash-brand" @click="emit('navigate', 'landing')">
           <div class="dash-logo">
-            <Compass :size="20" />
+            <img src="/favicon.svg" alt="Logo Minahasa Selatan" width="24" height="24" />
           </div>
           <div>
             <h1 class="dash-title">GeoMinsel Dashboard</h1>

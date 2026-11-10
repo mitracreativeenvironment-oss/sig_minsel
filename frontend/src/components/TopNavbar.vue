@@ -16,7 +16,7 @@ const authStore = useAuthStore();
   <header class="top-nav">
     <div class="nav-brand" @click="emit('navigate', 'landing')">
       <div class="brand-icon">
-        <Compass :size="22" />
+        <img src="/favicon.svg" alt="Logo Minahasa Selatan" width="28" height="28" />
       </div>
       <div class="brand-text">
         <h1 class="brand-title">GEOMINSEL</h1>
@@ -102,12 +102,12 @@ const authStore = useAuthStore();
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-  color: #ffffff;
+  background: #0f172a;
+  border: 1px solid rgba(245, 158, 11, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .brand-text {

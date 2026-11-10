@@ -136,7 +136,7 @@ const officialRolesList = [
     <header class="landing-header">
       <div class="brand-container" @click="scrollToSection(0)">
         <div class="brand-emblem">
-          <Compass :size="22" />
+          <img src="/favicon.svg" alt="Logo Minahasa Selatan" width="30" height="30" />
         </div>
         <div class="brand-info">
           <span class="brand-name">GEOMINSEL</span>

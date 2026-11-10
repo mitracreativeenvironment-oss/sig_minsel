@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256"><title>Logo GeoMinsel Minahasa Selatan</title><g transform="translate(7.3 5.41) scale(0.943)">
+  
+  <defs>
+    <linearGradient id="shieldGradA" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="50%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#0b132b" />
+    </linearGradient>
+
+    <linearGradient id="wingRedGradA" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ef4444" />
+      <stop offset="100%" stop-color="#b91c1c" />
+    </linearGradient>
+
+    <linearGradient id="goldGradA" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde047" />
+      <stop offset="50%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+
+    <linearGradient id="azureGradA" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+  </defs>
+
+  <!-- Outer Pin-Shield Contour (Perisai Geodetik Minahasa Selatan) -->
+  <path
+    d="M 128 16 
+       C 148 16, 172 26, 186 18 
+       C 200 10, 206 28, 208 44 
+       C 214 94, 212 142, 178 184 
+       C 158 208, 138 230, 128 244 
+       C 118 230, 98 208, 78 184 
+       C 44 142, 42 94, 48 44 
+       C 50 28, 56 10, 70 18 
+       C 84 26, 108 16, 128 16 Z"
+    fill="url(#shieldGradA)"
+    stroke="url(#goldGradA)"
+    stroke-width="5"
+    stroke-linejoin="round"
+  />
+
+  <!-- Inner Red Heraldic Crest & Wings (Sayap Manguni Merah) -->
+  <path
+    d="M 72 32 
+       C 88 44, 110 38, 128 46 
+       C 146 38, 168 44, 184 32 
+       C 188 56, 194 92, 186 130 
+       C 176 112, 162 102, 146 100 
+       C 152 86, 144 74, 128 74 
+       C 112 74, 104 86, 110 100 
+       C 94 102, 80 112, 70 130 
+       C 62 92, 68 56, 72 32 Z"
+    fill="url(#wingRedGradA)"
+  />
+
+  <!-- Top Crown Tufts (Telinga Tegak Burung Manguni) -->
+  <polygon points="76,20 62,38 84,34" fill="#fde047" />
+  <polygon points="180,20 194,38 172,34" fill="#fde047" />
+
+  <!-- Geodetic Arcs & Coordinate Rings (Mata Manguni Waspada) -->
+  <!-- Left Eye -->
+  <circle cx="94" cy="116" r="26" fill="#0b132b" stroke="#f59e0b" stroke-width="3" />
+  <circle cx="94" cy="116" r="17" fill="url(#azureGradA)" />
+  <circle cx="94" cy="116" r="9" fill="#0f172a" />
+  <circle cx="97" cy="113" r="3.5" fill="#ffffff" />
+  <!-- Eye Reticle Ticks -->
+  <line x1="68" y1="116" x2="74" y2="116" stroke="#fde047" stroke-width="2" />
+  <line x1="114" y1="116" x2="120" y2="116" stroke="#fde047" stroke-width="2" />
+  <line x1="94" y1="90" x2="94" y2="96" stroke="#fde047" stroke-width="2" />
+  <line x1="94" y1="136" x2="94" y2="142" stroke="#fde047" stroke-width="2" />
+
+  <!-- Right Eye -->
+  <circle cx="162" cy="116" r="26" fill="#0b132b" stroke="#f59e0b" stroke-width="3" />
+  <circle cx="162" cy="116" r="17" fill="url(#azureGradA)" />
+  <circle cx="162" cy="116" r="9" fill="#0f172a" />
+  <circle cx="165" cy="113" r="3.5" fill="#ffffff" />
+  <!-- Eye Reticle Ticks -->
+  <line x1="136" y1="116" x2="142" y2="116" stroke="#fde047" stroke-width="2" />
+  <line x1="182" y1="116" x2="188" y2="116" stroke="#fde047" stroke-width="2" />
+  <line x1="162" y1="90" x2="162" y2="96" stroke="#fde047" stroke-width="2" />
+  <line x1="162" y1="136" x2="162" y2="142" stroke="#fde047" stroke-width="2" />
+
+  <!-- Golden Beak & Compass Pointer (Paruh Emas Manguni) -->
+  <polygon points="128,114 116,144 128,172 140,144" fill="url(#goldGradA)" stroke="#fde047" stroke-width="1.5" />
+  <line x1="128" y1="114" x2="128" y2="172" stroke="#b45309" stroke-width="1.5" />
+
+  <!-- The Open Book of Knowledge / Data Layers (Buku Satu Data di Dada) -->
+  <path
+    d="M 98 178 
+       C 112 172, 124 174, 128 178 
+       C 132 174, 144 172, 158 178 
+       L 156 196 
+       C 142 191, 132 192, 128 196 
+       C 124 192, 114 191, 100 196 Z"
+    fill="#ffffff"
+    stroke="#0284c7"
+    stroke-width="1.5"
+  />
+
+  <!-- Spatial Pin Tip Beacon (Pusat Titik Koordinat Minahasa Selatan) -->
+  <circle cx="128" cy="220" r="5" fill="#38bdf8" />
+</g></svg>
