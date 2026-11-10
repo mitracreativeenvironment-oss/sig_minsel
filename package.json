@@ -1,6 +1,6 @@
 {
     "name":  "sig_minsel",
-    "version":  "0.5.8",
+    "version":  "0.5.9",
     "description":  "Sistem Informasi Geografis (SIG) Kabupaten Minahasa Selatan",
     "private":  true,
     "scripts":  {

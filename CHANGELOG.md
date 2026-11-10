@@ -11,6 +11,14 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 
 ---
 
+## [0.5.9] - 2026-11-10
+
+### Keterangan Perubahan
+- Optimalisasi adaptif kamera multi-resolusi dan responsivitas mobile 3D Logo Perakitan
+- fix(3d-logo): adaptif kamera multi-resolusi portrait/desktop dan HUD responsif pada layar ponsel (406d494)
+
+---
+
 ## [0.5.8] - 2026-11-10
 
 ### Keterangan Perubahan
@@ -133,6 +141,7 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 - Workflow otomasi CI/CD & GitHub Releases (`.github/workflows/release.yml`, `.github/workflows/ci.yml`).
 - Skema dasar basis data spasial (tabel batas administrasi kecamatan/desa dan objek tematik).
 - Konfigurasi `.gitignore` menyeluruh untuk CI4, Vue 3, GIS, dan cPanel.
+
 
 
 
