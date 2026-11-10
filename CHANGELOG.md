@@ -11,6 +11,14 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 
 ---
 
+## [0.5.5] - 2026-11-10
+
+### Keterangan Perubahan
+- Adopsi 41 foto asli Minahasa Selatan dari images/minsel sebagai latar horizontal scrollytelling dengan metadata koordinat dan elevasi real-time
+- feat(scenery): integrasi 41 foto asli Minahasa Selatan dari images/minsel ke dalam horizontal scrollytelling (7cbc750)
+
+---
+
 ## [0.5.4] - 2026-11-10
 
 ### Keterangan Perubahan
@@ -101,6 +109,7 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 - Workflow otomasi CI/CD & GitHub Releases (`.github/workflows/release.yml`, `.github/workflows/ci.yml`).
 - Skema dasar basis data spasial (tabel batas administrasi kecamatan/desa dan objek tematik).
 - Konfigurasi `.gitignore` menyeluruh untuk CI4, Vue 3, GIS, dan cPanel.
+
 
 
 
