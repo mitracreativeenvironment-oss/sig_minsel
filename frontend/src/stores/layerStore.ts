@@ -17,6 +17,7 @@ export const useLayerStore = defineStore('layer', {
     activeBasemap: 'carto-positron' as BasemapType,
     categories: [] as KategoriLayer[],
     activeLayers: ['admin_wilayah', 'pemerintahan', 'kesehatan', 'pariwisata'] as string[],
+    isFocusMinselActive: true, // Tampilan Default: Blur + Grayscale Luar Minsel Aktif
     isLoading: false,
   }),
 
@@ -50,6 +51,10 @@ export const useLayerStore = defineStore('layer', {
 
     isLayerActive(kode: string): boolean {
       return this.activeLayers.includes(kode);
+    },
+
+    toggleFocusMinsel() {
+      this.isFocusMinselActive = !this.isFocusMinselActive;
     }
   }
 });

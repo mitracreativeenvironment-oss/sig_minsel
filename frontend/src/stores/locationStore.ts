@@ -118,3 +118,4 @@ export const useLocationStore = defineStore('location', () => {
     triggerCenter
   };
 });
+

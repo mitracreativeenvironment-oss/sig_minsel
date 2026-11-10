@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useLayerStore, type BasemapType } from '../stores/layerStore';
-import { Layers, Map as MapIcon, Hospital, Landmark, Trees, ShieldAlert, Check } from 'lucide-vue-next';
+import { Layers, Map as MapIcon, Hospital, Landmark, Trees, ShieldAlert, Check, Eye } from 'lucide-vue-next';
 
 const layerStore = useLayerStore();
 
@@ -33,6 +33,27 @@ const thematicLayers = [
 
 <template>
   <div class="layer-control-card">
+    <!-- Fokus Wilayah Minahasa Selatan (Blur + Grayscale Luar Minsel) -->
+    <div class="control-section focus-section">
+      <div class="focus-row">
+        <div class="focus-info">
+          <div class="focus-title">
+            <Eye :size="15" class="icon-focus" />
+            <span>Fokus Teritorial Minsel</span>
+          </div>
+          <span class="focus-sub">Blur &amp; Desaturasi wilayah luar Minsel</span>
+        </div>
+        <label class="toggle-switch-sm" title="Aktifkan/Nonaktifkan Fokus Minsel">
+          <input
+            type="checkbox"
+            :checked="layerStore.isFocusMinselActive"
+            @change="layerStore.toggleFocusMinsel()"
+          />
+          <span class="slider-sm"></span>
+        </label>
+      </div>
+    </div>
+
     <!-- Basemap Selector (8 Pilihan Lengkap & Free) -->
     <div class="control-section">
       <div class="section-title">
@@ -98,6 +119,92 @@ const thematicLayers = [
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* Fokus Minsel Section Styling */
+.focus-section {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.focus-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.focus-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.focus-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.icon-focus {
+  color: #0284c7;
+}
+
+.focus-sub {
+  font-size: 10px;
+  color: #64748b;
+}
+
+/* Toggle Switch Small */
+.toggle-switch-sm {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.toggle-switch-sm input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider-sm {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #cbd5e1;
+  border-radius: 22px;
+  transition: 0.25s;
+}
+
+.slider-sm:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #ffffff;
+  border-radius: 50%;
+  transition: 0.25s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+input:checked + .slider-sm {
+  background: #0284c7;
+}
+
+input:checked + .slider-sm:before {
+  transform: translateX(18px);
 }
 
 .section-title {
