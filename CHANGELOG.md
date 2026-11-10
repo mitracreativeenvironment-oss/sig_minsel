@@ -31,3 +31,4 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 - Workflow otomasi CI/CD & GitHub Releases (`.github/workflows/release.yml`, `.github/workflows/ci.yml`).
 - Skema dasar basis data spasial (tabel batas administrasi kecamatan/desa dan objek tematik).
 - Konfigurasi `.gitignore` menyeluruh untuk CI4, Vue 3, GIS, dan cPanel.
+

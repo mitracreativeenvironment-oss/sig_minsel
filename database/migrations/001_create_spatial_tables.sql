@@ -59,3 +59,4 @@ CREATE TABLE IF NOT EXISTS `objek_spasial` (
   INDEX `idx_objek_kategori` (`kategori_id`),
   CONSTRAINT `fk_objek_kategori` FOREIGN KEY (`kategori_id`) REFERENCES `kategori_layer` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+

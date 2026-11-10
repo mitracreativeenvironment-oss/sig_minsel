@@ -90,3 +90,4 @@ else
   echo "  git push origin \$(git rev-parse --abbrev-ref HEAD)"
   echo "  git push origin $TAG_NAME"
 fi
+

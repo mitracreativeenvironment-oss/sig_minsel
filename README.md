@@ -104,3 +104,4 @@ Format pesan commit yang dianjurkan:
 ## Lisensi & Kontribusi
 Dikembangkan oleh **Mitra Creative Environment OSS** untuk inisiatif tata kelola geospasial terbuka.
 Lisensi: MIT.
+
