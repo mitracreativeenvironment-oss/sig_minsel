@@ -12,7 +12,10 @@ import type {
   OpdItem,
   KategoriSpasialItem,
   AuditLogItem,
-  VisitorSummary
+  VisitorSummary,
+  KecamatanAdminItem,
+  DesaAdminItem,
+  BaseMapItem
 } from '../types';
 import {
   LayoutDashboard,
@@ -50,7 +53,10 @@ import {
   Globe,
   Smartphone,
   Monitor,
-  Tablet
+  Tablet,
+  Map as MapIcon,
+  Compass,
+  Star
 } from 'lucide-vue-next';
 
 const emit = defineEmits<{
@@ -59,7 +65,7 @@ const emit = defineEmits<{
 
 const authStore = useAuthStore();
 
-type NavTab = 'overview' | 'datasets' | 'validation' | 'approval' | 'data_dasar' | 'kategori' | 'opd' | 'users' | 'audit';
+type NavTab = 'overview' | 'datasets' | 'validation' | 'approval' | 'data_dasar' | 'wilayah' | 'basemaps' | 'kategori' | 'opd' | 'users' | 'audit';
 const activeTab = ref<NavTab>('overview');
 
 // Data State
@@ -70,6 +76,64 @@ const usersList = ref<UserItem[]>([]);
 const opdList = ref<OpdItem[]>([]);
 const kategoriList = ref<KategoriSpasialItem[]>([]);
 const isLoading = ref(false);
+
+// Wilayah CRUD State (Kecamatan & Desa)
+const subTabWilayah = ref<'kecamatan' | 'desa'>('kecamatan');
+const kecamatanAdminList = ref<KecamatanAdminItem[]>([]);
+const desaAdminList = ref<DesaAdminItem[]>([]);
+const isWilayahLoading = ref(false);
+const searchKecamatanQuery = ref('');
+const searchDesaQuery = ref('');
+const filterDesaKecamatan = ref('');
+const filterDesaTipe = ref('');
+
+// Modals & Forms for Kecamatan
+const isCreateKecamatanModalOpen = ref(false);
+const isEditKecamatanModalOpen = ref(false);
+const kecamatanForm = ref({
+  id: 0,
+  nama_kecamatan: '',
+  kode_kecamatan: '',
+  ibukota_kecamatan: '',
+  luas_wilayah_km2: 50.0,
+  center_lng: 124.57,
+  center_lat: 1.18
+});
+
+// Modals & Forms for Desa
+const isCreateDesaModalOpen = ref(false);
+const isEditDesaModalOpen = ref(false);
+const desaForm = ref({
+  id: 0,
+  nama_desa: '',
+  kode_desa: '',
+  tipe: 'DESA' as 'DESA' | 'KELURAHAN',
+  kecamatan_id: 1,
+  luas_wilayah_km2: 5.0,
+  center_lng: 124.57,
+  center_lat: 1.18
+});
+
+// Base Map CRUD State
+const basemapsAdminList = ref<BaseMapItem[]>([]);
+const isBasemapLoading = ref(false);
+const searchBasemapQuery = ref('');
+const filterBasemapType = ref('');
+const filterBasemapStatus = ref('');
+const isCreateBasemapModalOpen = ref(false);
+const isEditBasemapModalOpen = ref(false);
+const basemapForm = ref({
+  id: 0,
+  name: '',
+  label: '',
+  desc: '',
+  type: 'raster' as 'raster' | 'vector',
+  tile_url: '',
+  attribution: '',
+  max_zoom: 19,
+  min_zoom: 0,
+  preview_color: '#334155'
+});
 
 // Audit Log State & Filters
 const auditLogs = ref<AuditLogItem[]>([]);
@@ -891,12 +955,343 @@ async function showAuditDetail(log: AuditLogItem) {
   await showDetailDialog(`Detail Jejak Audit #${log.id}`, htmlContent);
 }
 
+// ==========================================
+// CRUD WILAYAH: KECAMATAN & DESA HANDLERS
+// ==========================================
+
+const filteredKecamatans = computed(() => {
+  const q = searchKecamatanQuery.value.trim().toLowerCase();
+  return kecamatanAdminList.value.filter((k) => {
+    return (
+      !q ||
+      k.nama_kecamatan.toLowerCase().includes(q) ||
+      k.kode_kecamatan.toLowerCase().includes(q) ||
+      (k.ibukota_kecamatan && k.ibukota_kecamatan.toLowerCase().includes(q))
+    );
+  });
+});
+
+const filteredDesas = computed(() => {
+  const q = searchDesaQuery.value.trim().toLowerCase();
+  return desaAdminList.value.filter((d) => {
+    const matchSearch =
+      !q ||
+      d.nama_desa.toLowerCase().includes(q) ||
+      d.kode_desa.toLowerCase().includes(q) ||
+      d.nama_kecamatan.toLowerCase().includes(q);
+
+    const matchKec = !filterDesaKecamatan.value || d.kecamatan_id === Number(filterDesaKecamatan.value);
+    const matchTipe = !filterDesaTipe.value || d.tipe === filterDesaTipe.value;
+
+    return matchSearch && matchKec && matchTipe;
+  });
+});
+
+async function loadKecamatans() {
+  isWilayahLoading.value = true;
+  try {
+    const res = await sigApi.getKecamatanAdmin();
+    kecamatanAdminList.value = res.data;
+  } catch (e: any) {
+    console.warn('Gagal memuat kecamatan admin:', e);
+  } finally {
+    isWilayahLoading.value = false;
+  }
+}
+
+async function loadDesas() {
+  isWilayahLoading.value = true;
+  try {
+    const res = await sigApi.getDesaAdmin();
+    desaAdminList.value = res.data;
+  } catch (e: any) {
+    console.warn('Gagal memuat desa admin:', e);
+  } finally {
+    isWilayahLoading.value = false;
+  }
+}
+
+function openCreateKecamatanModal() {
+  kecamatanForm.value = {
+    id: 0,
+    nama_kecamatan: '',
+    kode_kecamatan: '71.05.' + String(kecamatanAdminList.value.length + 1).padStart(2, '0'),
+    ibukota_kecamatan: '',
+    luas_wilayah_km2: 50.0,
+    center_lng: 124.57,
+    center_lat: 1.18
+  };
+  isCreateKecamatanModalOpen.value = true;
+}
+
+function openEditKecamatanModal(k: KecamatanAdminItem) {
+  kecamatanForm.value = {
+    id: k.id,
+    nama_kecamatan: k.nama_kecamatan,
+    kode_kecamatan: k.kode_kecamatan,
+    ibukota_kecamatan: k.ibukota_kecamatan || '',
+    luas_wilayah_km2: k.luas_wilayah_km2,
+    center_lng: k.center_lng || 124.57,
+    center_lat: k.center_lat || 1.18
+  };
+  isEditKecamatanModalOpen.value = true;
+}
+
+async function handleCreateKecamatan() {
+  try {
+    const res = await sigApi.createKecamatan(kecamatanForm.value);
+    await loadKecamatans();
+    isCreateKecamatanModalOpen.value = false;
+    notify.success('Kecamatan Ditambahkan', res.message);
+  } catch (e: any) {
+    notify.error('Gagal Tambah Kecamatan', e.message);
+  }
+}
+
+async function handleUpdateKecamatan() {
+  try {
+    const res = await sigApi.updateKecamatan(kecamatanForm.value);
+    await loadKecamatans();
+    isEditKecamatanModalOpen.value = false;
+    notify.success('Kecamatan Diperbarui', res.message);
+  } catch (e: any) {
+    notify.error('Gagal Perbarui Kecamatan', e.message);
+  }
+}
+
+async function handleDeleteKecamatanWithConfirm(k: KecamatanAdminItem) {
+  const confirmed = await confirmDialog({
+    title: 'Hapus Kecamatan?',
+    text: `Kecamatan "${k.nama_kecamatan}" (${k.kode_kecamatan}) akan dihapus dari basis data spasial resmi.`,
+    confirmButtonText: 'Ya, Hapus',
+    isDangerous: true,
+    icon: 'warning'
+  });
+  if (!confirmed) return;
+  try {
+    const res = await sigApi.deleteKecamatan(k.id);
+    await loadKecamatans();
+    notify.success('Kecamatan Dihapus', res.message);
+  } catch (e: any) {
+    notify.error('Gagal Hapus Kecamatan', e.message);
+  }
+}
+
+function openCreateDesaModal() {
+  const defaultKecId = kecamatanAdminList.value[0]?.id || 1;
+  desaForm.value = {
+    id: 0,
+    nama_desa: '',
+    kode_desa: '',
+    tipe: 'DESA',
+    kecamatan_id: defaultKecId,
+    luas_wilayah_km2: 5.0,
+    center_lng: 124.57,
+    center_lat: 1.18
+  };
+  isCreateDesaModalOpen.value = true;
+}
+
+function openEditDesaModal(d: DesaAdminItem) {
+  desaForm.value = {
+    id: d.id,
+    nama_desa: d.nama_desa,
+    kode_desa: d.kode_desa,
+    tipe: d.tipe,
+    kecamatan_id: d.kecamatan_id,
+    luas_wilayah_km2: d.luas_wilayah_km2,
+    center_lng: d.center_lng || 124.57,
+    center_lat: d.center_lat || 1.18
+  };
+  isEditDesaModalOpen.value = true;
+}
+
+async function handleCreateDesa() {
+  try {
+    const res = await sigApi.createDesa(desaForm.value);
+    await loadDesas();
+    await loadKecamatans();
+    isCreateDesaModalOpen.value = false;
+    notify.success('Desa/Kelurahan Ditambahkan', res.message);
+  } catch (e: any) {
+    notify.error('Gagal Tambah Desa', e.message);
+  }
+}
+
+async function handleUpdateDesa() {
+  try {
+    const res = await sigApi.updateDesa(desaForm.value);
+    await loadDesas();
+    isEditDesaModalOpen.value = false;
+    notify.success('Data Diperbarui', res.message);
+  } catch (e: any) {
+    notify.error('Gagal Perbarui Desa', e.message);
+  }
+}
+
+async function handleDeleteDesaWithConfirm(d: DesaAdminItem) {
+  const confirmed = await confirmDialog({
+    title: `Hapus ${d.tipe}?`,
+    text: `${d.tipe} "${d.nama_desa}" (${d.kode_desa}) di Kecamatan ${d.nama_kecamatan} akan dihapus.`,
+    confirmButtonText: 'Ya, Hapus',
+    isDangerous: true,
+    icon: 'warning'
+  });
+  if (!confirmed) return;
+  try {
+    const res = await sigApi.deleteDesa(d.id);
+    await loadDesas();
+    await loadKecamatans();
+    notify.success('Desa Dihapus', res.message);
+  } catch (e: any) {
+    notify.error('Gagal Hapus Desa', e.message);
+  }
+}
+
+// ==========================================
+// CRUD BASE MAP (PETA DASAR) HANDLERS
+// ==========================================
+
+const filteredBasemaps = computed(() => {
+  const q = searchBasemapQuery.value.trim().toLowerCase();
+  return basemapsAdminList.value.filter((b) => {
+    const matchSearch =
+      !q ||
+      b.label.toLowerCase().includes(q) ||
+      b.name.toLowerCase().includes(q) ||
+      (b.desc && b.desc.toLowerCase().includes(q)) ||
+      (b.attribution && b.attribution.toLowerCase().includes(q));
+
+    const matchType = !filterBasemapType.value || b.type === filterBasemapType.value;
+    const matchStatus =
+      !filterBasemapStatus.value ||
+      (filterBasemapStatus.value === 'active' && b.is_active) ||
+      (filterBasemapStatus.value === 'inactive' && !b.is_active);
+
+    return matchSearch && matchType && matchStatus;
+  });
+});
+
+async function loadBasemapsAdmin() {
+  isBasemapLoading.value = true;
+  try {
+    const res = await sigApi.getAdminBasemaps();
+    basemapsAdminList.value = res.data;
+  } catch (e: any) {
+    console.warn('Gagal memuat basemap admin:', e);
+  } finally {
+    isBasemapLoading.value = false;
+  }
+}
+
+function openCreateBasemapModal() {
+  basemapForm.value = {
+    id: 0,
+    name: '',
+    label: '',
+    desc: '',
+    type: 'raster',
+    tile_url: '',
+    attribution: 'Peta Dasar GeoMinsel &copy; 2026',
+    max_zoom: 19,
+    min_zoom: 0,
+    preview_color: '#334155'
+  };
+  isCreateBasemapModalOpen.value = true;
+}
+
+function openEditBasemapModal(b: BaseMapItem) {
+  basemapForm.value = {
+    id: b.id,
+    name: b.name,
+    label: b.label,
+    desc: b.desc,
+    type: b.type,
+    tile_url: b.tile_url,
+    attribution: b.attribution,
+    max_zoom: b.max_zoom,
+    min_zoom: b.min_zoom,
+    preview_color: b.preview_color
+  };
+  isEditBasemapModalOpen.value = true;
+}
+
+async function handleCreateBasemap() {
+  try {
+    const res = await sigApi.createBasemap(basemapForm.value);
+    await loadBasemapsAdmin();
+    isCreateBasemapModalOpen.value = false;
+    notify.success('Peta Dasar Ditambahkan', res.message);
+  } catch (e: any) {
+    notify.error('Gagal Tambah Base Map', e.message);
+  }
+}
+
+async function handleUpdateBasemap() {
+  try {
+    const res = await sigApi.updateBasemap(basemapForm.value);
+    await loadBasemapsAdmin();
+    isEditBasemapModalOpen.value = false;
+    notify.success('Peta Dasar Diperbarui', res.message);
+  } catch (e: any) {
+    notify.error('Gagal Perbarui Base Map', e.message);
+  }
+}
+
+async function handleToggleBasemap(b: BaseMapItem) {
+  try {
+    const res = await sigApi.toggleBasemap(b.id);
+    b.is_active = res.data.is_active;
+    notify.success('Status Berubah', res.message);
+  } catch (e: any) {
+    notify.error('Gagal Ubah Status', e.message);
+  }
+}
+
+async function handleSetDefaultBasemap(b: BaseMapItem) {
+  const confirmed = await confirmDialog({
+    title: 'Tetapkan Sebagai Default?',
+    text: `Peta dasar "${b.label}" akan menjadi layer acuan utama saat pengunjung pertama kali membuka Geoportal.`,
+    confirmButtonText: 'Ya, Jadikan Default',
+    icon: 'question'
+  });
+  if (!confirmed) return;
+  try {
+    const res = await sigApi.setDefaultBasemap(b.id);
+    basemapsAdminList.value.forEach((item) => {
+      item.is_default = item.id === b.id;
+      if (item.id === b.id) item.is_active = true;
+    });
+    notify.success('Default Ditetapkan', res.message);
+  } catch (e: any) {
+    notify.error('Gagal Tetapkan Default', e.message);
+  }
+}
+
+async function handleDeleteBasemapWithConfirm(b: BaseMapItem) {
+  const confirmed = await confirmDialog({
+    title: 'Hapus Peta Dasar?',
+    text: `Konfigurasi peta dasar "${b.label}" (${b.name}) akan dihapus secara permanen.`,
+    confirmButtonText: 'Ya, Hapus',
+    isDangerous: true,
+    icon: 'warning'
+  });
+  if (!confirmed) return;
+  try {
+    const res = await sigApi.deleteBasemap(b.id);
+    await loadBasemapsAdmin();
+    notify.success('Peta Dasar Dihapus', res.message);
+  } catch (e: any) {
+    notify.error('Gagal Hapus Base Map', e.message);
+  }
+}
+
 async function loadDashboardData() {
   isLoading.value = true;
   try {
     sigApi.trackVisitor({ page: 'dashboard' }).catch(() => {});
 
-    const [wfRes, dsRes, ddRes, usersRes, opdRes, katRes, logsRes, visitorRes] = await Promise.allSettled([
+    const [wfRes, dsRes, ddRes, usersRes, opdRes, katRes, logsRes, visitorRes, kecRes, desaRes, basemapsRes] = await Promise.allSettled([
       sigApi.getWorkflowStates(),
       sigApi.getWorkflowDatasets(),
       sigApi.getDataDasar(),
@@ -904,7 +1299,10 @@ async function loadDashboardData() {
       sigApi.getOpds(),
       sigApi.getKategoriAdmin(),
       sigApi.getAuditLogs(),
-      sigApi.getVisitorSummary()
+      sigApi.getVisitorSummary(),
+      sigApi.getKecamatanAdmin(),
+      sigApi.getDesaAdmin(),
+      sigApi.getAdminBasemaps()
     ]);
 
     if (wfRes.status === 'fulfilled') {
@@ -932,6 +1330,15 @@ async function loadDashboardData() {
     }
     if (visitorRes.status === 'fulfilled') {
       visitorStats.value = visitorRes.value.data;
+    }
+    if (kecRes.status === 'fulfilled') {
+      kecamatanAdminList.value = kecRes.value.data;
+    }
+    if (desaRes.status === 'fulfilled') {
+      desaAdminList.value = desaRes.value.data;
+    }
+    if (basemapsRes.status === 'fulfilled') {
+      basemapsAdminList.value = basemapsRes.value.data;
     }
   } catch (e) {
     console.warn('Gagal memuat data dashboard:', e);
@@ -1083,6 +1490,12 @@ function switchRole(role: RoleName) {
   if (!['superadmin', 'admin_opd'].includes(role) && activeTab.value === 'users') {
     activeTab.value = 'overview';
   }
+  if (!['superadmin', 'admin_gis', 'admin_opd'].includes(role) && activeTab.value === 'wilayah') {
+    activeTab.value = 'overview';
+  }
+  if (!['superadmin', 'admin_gis'].includes(role) && activeTab.value === 'basemaps') {
+    activeTab.value = 'overview';
+  }
   const roleObj = authStore.roles.find((r) => r.name === role);
   notify.info(
     'Peran Pengguna Berubah',
@@ -1222,6 +1635,28 @@ onMounted(() => {
           >
             <Layers :size="18" />
             <span>Kategori Spasial ({{ kategoriList.length }})</span>
+          </button>
+
+          <!-- Modul CRUD Wilayah: Kecamatan, Kelurahan & Desa -->
+          <button
+            v-if="['superadmin', 'admin_gis', 'admin_opd'].includes(authStore.currentRole)"
+            class="nav-item"
+            :class="{ active: activeTab === 'wilayah' }"
+            @click="activeTab = 'wilayah'"
+          >
+            <MapPin :size="18" />
+            <span>Wilayah (Kecamatan &amp; Desa)</span>
+          </button>
+
+          <!-- Modul Superadmin: CRUD Base Map (Peta Dasar) -->
+          <button
+            v-if="['superadmin', 'admin_gis'].includes(authStore.currentRole)"
+            class="nav-item item-superadmin"
+            :class="{ active: activeTab === 'basemaps' }"
+            @click="activeTab = 'basemaps'"
+          >
+            <MapIcon :size="18" />
+            <span>Peta Dasar (Base Map)</span>
           </button>
 
           <!-- Modul Master OPD (Perangkat Daerah) -->
@@ -2145,6 +2580,400 @@ onMounted(() => {
                 </tr>
               </tbody>
             </table>
+          </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- TAB: WILAYAH (KECAMATAN, KELURAHAN & DESA - CRUD)              -->
+        <!-- ============================================================== -->
+        <div v-if="activeTab === 'wilayah'" class="tab-content">
+          <div class="content-header">
+            <div>
+              <h2 class="content-title">Manajemen Administrasi Wilayah</h2>
+              <p class="content-sub">Kelola batas hierarki 17 Kecamatan, 167 Desa, dan 10 Kelurahan Kabupaten Minahasa Selatan</p>
+            </div>
+
+            <!-- Controls Cluster -->
+            <div class="header-controls-cluster">
+              <button
+                v-if="subTabWilayah === 'kecamatan'"
+                type="button"
+                class="btn-create-dataset"
+                @click="openCreateKecamatanModal"
+                title="Tambah Wilayah Kecamatan Baru"
+              >
+                <Plus :size="15" />
+                <span>Tambah Kecamatan</span>
+              </button>
+
+              <button
+                v-else
+                type="button"
+                class="btn-create-dataset"
+                @click="openCreateDesaModal"
+                title="Tambah Desa atau Kelurahan Baru"
+              >
+                <Plus :size="15" />
+                <span>Tambah Desa / Kelurahan</span>
+              </button>
+
+              <button
+                type="button"
+                class="btn-box-action"
+                @click="loadKecamatans(); loadDesas();"
+                title="Segarkan Data Wilayah"
+              >
+                <RotateCcw :size="14" :class="{ 'spin-anim': isWilayahLoading }" />
+                <span>Refresh</span>
+              </button>
+
+              <!-- Sub-tab Switcher -->
+              <div class="subnav-pill-group">
+                <button
+                  type="button"
+                  class="subnav-pill"
+                  :class="{ active: subTabWilayah === 'kecamatan' }"
+                  @click="subTabWilayah = 'kecamatan'"
+                >
+                  <MapPin :size="13" />
+                  <span>Kecamatan ({{ kecamatanAdminList.length }})</span>
+                </button>
+                <button
+                  type="button"
+                  class="subnav-pill"
+                  :class="{ active: subTabWilayah === 'desa' }"
+                  @click="subTabWilayah = 'desa'"
+                >
+                  <Building2 :size="13" />
+                  <span>Desa &amp; Kelurahan ({{ desaAdminList.length }})</span>
+                </button>
+              </div>
+
+              <!-- Search Bar -->
+              <div v-if="subTabWilayah === 'kecamatan'" class="search-input-wrap search-sm">
+                <Search :size="15" class="search-icon" />
+                <input
+                  v-model="searchKecamatanQuery"
+                  type="text"
+                  placeholder="Cari kecamatan, kode, atau ibukota..."
+                  class="search-input-field"
+                />
+                <button
+                  v-if="searchKecamatanQuery"
+                  type="button"
+                  class="clear-search-btn"
+                  @click="searchKecamatanQuery = ''"
+                >
+                  <X :size="13" />
+                </button>
+              </div>
+
+              <div v-else class="search-input-wrap search-sm">
+                <Search :size="15" class="search-icon" />
+                <input
+                  v-model="searchDesaQuery"
+                  type="text"
+                  placeholder="Cari desa, kode, kecamatan..."
+                  class="search-input-field"
+                />
+                <button
+                  v-if="searchDesaQuery"
+                  type="button"
+                  class="clear-search-btn"
+                  @click="searchDesaQuery = ''"
+                >
+                  <X :size="13" />
+                </button>
+              </div>
+
+              <!-- Filter khusus Desa -->
+              <template v-if="subTabWilayah === 'desa'">
+                <select v-model="filterDesaKecamatan" class="filter-select-enhanced">
+                  <option value="">Semua Kecamatan (17)</option>
+                  <option v-for="kec in kecamatanAdminList" :key="kec.id" :value="kec.id">
+                    {{ kec.nama_kecamatan }}
+                  </option>
+                </select>
+
+                <select v-model="filterDesaTipe" class="filter-select-enhanced">
+                  <option value="">Semua Tipe</option>
+                  <option value="DESA">Desa (167)</option>
+                  <option value="KELURAHAN">Kelurahan (10)</option>
+                </select>
+              </template>
+            </div>
+          </div>
+
+          <!-- SUB-TAB 1: KECAMATAN -->
+          <div v-if="subTabWilayah === 'kecamatan'">
+            <div v-if="filteredKecamatans.length === 0" class="empty-state-card">
+              <Search :size="40" class="empty-icon" />
+              <h3 class="empty-title">Tidak Ada Kecamatan yang Cocok</h3>
+              <p class="empty-desc">Tidak ditemukan kecamatan yang memenuhi kata kunci pencarian.</p>
+              <button type="button" class="btn-empty-reset" @click="searchKecamatanQuery = ''">
+                <RotateCcw :size="14" />
+                <span>Bersihkan Pencarian</span>
+              </button>
+            </div>
+
+            <!-- Tampilan Grid Kecamatan -->
+            <div v-else class="kecamatan-admin-grid">
+              <div v-for="k in filteredKecamatans" :key="k.id" class="kec-admin-card">
+                <div class="kec-card-top">
+                  <span class="kec-code font-mono">{{ k.kode_kecamatan }}</span>
+                  <span class="badge-total-desa">{{ k.total_desa }} Desa/Kel</span>
+                </div>
+                <h3 class="kec-name">{{ k.nama_kecamatan }}</h3>
+                <div class="kec-info-rows">
+                  <div class="kec-info-row">
+                    <span class="info-lbl">Ibukota:</span>
+                    <span class="info-val">{{ k.ibukota_kecamatan || '-' }}</span>
+                  </div>
+                  <div class="kec-info-row">
+                    <span class="info-lbl">Luas Wilayah:</span>
+                    <span class="info-val font-mono">{{ k.luas_wilayah_km2 }} km²</span>
+                  </div>
+                  <div class="kec-info-row">
+                    <span class="info-lbl">Titik Pusat:</span>
+                    <span class="info-val font-mono text-muted">{{ k.center_lng }}, {{ k.center_lat }}</span>
+                  </div>
+                </div>
+                <div class="kec-card-actions">
+                  <button type="button" class="btn-act btn-edit" @click="openEditKecamatanModal(k)">
+                    <Edit3 :size="12" />
+                    <span>Edit</span>
+                  </button>
+                  <button type="button" class="btn-act btn-delete" @click="handleDeleteKecamatanWithConfirm(k)">
+                    <Trash2 :size="12" />
+                    <span>Hapus</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SUB-TAB 2: DESA & KELURAHAN -->
+          <div v-else>
+            <div v-if="filteredDesas.length === 0" class="empty-state-card">
+              <Search :size="40" class="empty-icon" />
+              <h3 class="empty-title">Tidak Ada Desa / Kelurahan yang Cocok</h3>
+              <p class="empty-desc">Tidak ditemukan desa atau kelurahan yang memenuhi filter aktif.</p>
+              <button type="button" class="btn-empty-reset" @click="searchDesaQuery = ''; filterDesaKecamatan = ''; filterDesaTipe = '';">
+                <RotateCcw :size="14" />
+                <span>Bersihkan Filter</span>
+              </button>
+            </div>
+
+            <div v-else class="table-card">
+              <div class="table-meta-bar">
+                <span class="meta-count">
+                  Menampilkan <strong>{{ filteredDesas.length }}</strong> desa &amp; kelurahan se-Minahasa Selatan
+                </span>
+              </div>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Nama Desa / Kelurahan</th>
+                    <th>Tipe</th>
+                    <th>Kecamatan Induk</th>
+                    <th>Kode Wilayah</th>
+                    <th>Luas (km²)</th>
+                    <th>Koordinat Pusat</th>
+                    <th style="width: 140px; text-align: center;">Tindakan</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="d in filteredDesas" :key="d.id">
+                    <td>
+                      <span class="cell-title">{{ d.nama_desa }}</span>
+                    </td>
+                    <td>
+                      <span class="tipe-badge" :class="d.tipe === 'KELURAHAN' ? 'tipe-kel' : 'tipe-desa'">
+                        {{ d.tipe }}
+                      </span>
+                    </td>
+                    <td>
+                      <span class="badge-kec">{{ d.nama_kecamatan }}</span>
+                    </td>
+                    <td>
+                      <span class="font-mono text-muted">{{ d.kode_desa }}</span>
+                    </td>
+                    <td>
+                      <span class="font-mono">{{ d.luas_wilayah_km2 }} km²</span>
+                    </td>
+                    <td>
+                      <span class="font-mono text-xs text-muted">{{ d.center_lng }}, {{ d.center_lat }}</span>
+                    </td>
+                    <td style="text-align: center;">
+                      <div class="action-btn-group" style="justify-content: center;">
+                        <button type="button" class="btn-act btn-edit" @click="openEditDesaModal(d)">
+                          <Edit3 :size="12" />
+                          <span>Edit</span>
+                        </button>
+                        <button type="button" class="btn-act btn-delete" @click="handleDeleteDesaWithConfirm(d)">
+                          <Trash2 :size="12" />
+                          <span>Hapus</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- TAB: BASE MAPS (PETA DASAR SUPERADMIN - CRUD)                  -->
+        <!-- ============================================================== -->
+        <div v-if="activeTab === 'basemaps'" class="tab-content">
+          <div class="content-header">
+            <div>
+              <h2 class="content-title">Katalog &amp; Konfigurasi Peta Dasar (Base Map)</h2>
+              <p class="content-sub">Kelola layer citra satelit, topografi, dan peta jalan yang aktif di Geoportal publik Minahasa Selatan</p>
+            </div>
+
+            <!-- Controls Cluster -->
+            <div class="header-controls-cluster">
+              <button
+                type="button"
+                class="btn-create-dataset"
+                @click="openCreateBasemapModal"
+                title="Tambah Provider Base Map Baru"
+              >
+                <Plus :size="15" />
+                <span>Tambah Base Map</span>
+              </button>
+
+              <button
+                type="button"
+                class="btn-box-action"
+                @click="loadBasemapsAdmin"
+                title="Segarkan Daftar Base Map"
+              >
+                <RotateCcw :size="14" :class="{ 'spin-anim': isBasemapLoading }" />
+                <span>Refresh</span>
+              </button>
+
+              <div class="search-input-wrap search-sm">
+                <Search :size="15" class="search-icon" />
+                <input
+                  v-model="searchBasemapQuery"
+                  type="text"
+                  placeholder="Cari label, name, atribusi..."
+                  class="search-input-field"
+                />
+                <button
+                  v-if="searchBasemapQuery"
+                  type="button"
+                  class="clear-search-btn"
+                  @click="searchBasemapQuery = ''"
+                >
+                  <X :size="13" />
+                </button>
+              </div>
+
+              <select v-model="filterBasemapType" class="filter-select-enhanced">
+                <option value="">Semua Tipe (Raster &amp; Vector)</option>
+                <option value="raster">Raster Tiles (XYZ)</option>
+                <option value="vector">Vector Tiles / GL Style</option>
+              </select>
+
+              <select v-model="filterBasemapStatus" class="filter-select-enhanced">
+                <option value="">Semua Status</option>
+                <option value="active">Aktif di Geoportal</option>
+                <option value="inactive">Nonaktif</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Empty State -->
+          <div v-if="filteredBasemaps.length === 0" class="empty-state-card">
+            <Search :size="40" class="empty-icon" />
+            <h3 class="empty-title">Tidak Ada Base Map yang Cocok</h3>
+            <p class="empty-desc">Tidak ditemukan peta dasar yang memenuhi kriteria pencarian.</p>
+            <button type="button" class="btn-empty-reset" @click="searchBasemapQuery = ''; filterBasemapType = ''; filterBasemapStatus = '';">
+              <RotateCcw :size="14" />
+              <span>Bersihkan Filter</span>
+            </button>
+          </div>
+
+          <!-- Grid Peta Dasar -->
+          <div v-else class="basemap-admin-grid">
+            <div v-for="b in filteredBasemaps" :key="b.id" class="basemap-admin-card" :class="{ 'is-default-card': b.is_default }">
+              <div class="bm-card-header" :style="{ backgroundColor: b.preview_color || '#1e293b' }">
+                <div class="bm-header-badges">
+                  <span v-if="b.is_default" class="badge-default-bm">
+                    <Star :size="12" />
+                    <span>Default Geoportal</span>
+                  </span>
+                  <span class="badge-type-bm">{{ b.type.toUpperCase() }}</span>
+                </div>
+                <div class="bm-header-status">
+                  <span class="bm-status-dot" :class="b.is_active ? 'dot-active' : 'dot-inactive'"></span>
+                  <span>{{ b.is_active ? 'Aktif' : 'Nonaktif' }}</span>
+                </div>
+              </div>
+
+              <div class="bm-card-body">
+                <h3 class="bm-label">{{ b.label }}</h3>
+                <span class="bm-name font-mono">{{ b.name }}</span>
+                <p class="bm-desc">{{ b.desc || 'Tidak ada deskripsi' }}</p>
+
+                <div class="bm-url-box">
+                  <span class="bm-url-lbl">Tile / Style URL:</span>
+                  <code class="bm-url-val" :title="b.tile_url">{{ b.tile_url }}</code>
+                </div>
+
+                <div class="bm-meta-row">
+                  <span class="bm-meta-item">Zoom: {{ b.min_zoom }} - {{ b.max_zoom }}</span>
+                  <span class="bm-meta-item text-muted" :title="b.attribution">{{ b.attribution }}</span>
+                </div>
+              </div>
+
+              <div class="bm-card-footer">
+                <button
+                  v-if="!b.is_default"
+                  type="button"
+                  class="btn-bm-default"
+                  @click="handleSetDefaultBasemap(b)"
+                  title="Jadikan Base Map Default saat Geoportal Dibuka"
+                >
+                  <Star :size="13" />
+                  <span>Jadikan Default</span>
+                </button>
+
+                <div class="action-btn-group">
+                  <button
+                    type="button"
+                    class="btn-act"
+                    :class="b.is_active ? 'btn-warn' : 'btn-success'"
+                    @click="handleToggleBasemap(b)"
+                    :title="b.is_active ? 'Nonaktifkan dari Geoportal' : 'Aktifkan di Geoportal'"
+                  >
+                    <ToggleRight v-if="b.is_active" :size="13" />
+                    <ToggleLeft v-else :size="13" />
+                    <span>{{ b.is_active ? 'Nonaktifkan' : 'Aktifkan' }}</span>
+                  </button>
+
+                  <button type="button" class="btn-act btn-edit" @click="openEditBasemapModal(b)" title="Edit Konfigurasi">
+                    <Edit3 :size="13" />
+                    <span>Edit</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    class="btn-act btn-delete"
+                    :disabled="b.is_system || b.is_default"
+                    @click="handleDeleteBasemapWithConfirm(b)"
+                    :title="b.is_system ? 'Peta dasar sistem dilindungi' : 'Hapus Peta Dasar'"
+                  >
+                    <Trash2 :size="13" />
+                    <span>Hapus</span>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -3338,6 +4167,432 @@ onMounted(() => {
 
           <div class="modal-footer">
             <button type="button" class="btn-modal-cancel" @click="isEditKategoriModalOpen = false">Batal</button>
+            <button type="submit" class="btn-modal-submit">
+              <CheckCircle2 :size="15" />
+              <span>Simpan Perubahan</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- MODAL 9: TAMBAH KECAMATAN                                      -->
+    <!-- ============================================================== -->
+    <div v-if="isCreateKecamatanModalOpen" class="modal-backdrop" @click.self="isCreateKecamatanModalOpen = false">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <MapPin :size="18" class="text-emerald" />
+            <h3 class="modal-title">Tambah Kecamatan Baru</h3>
+          </div>
+          <button type="button" class="btn-close-modal" @click="isCreateKecamatanModalOpen = false">
+            <X :size="16" />
+          </button>
+        </div>
+
+        <form class="modal-form" @submit.prevent="handleCreateKecamatan">
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Kode Wilayah Kemendagri *</label>
+              <input v-model="kecamatanForm.kode_kecamatan" type="text" class="form-input" placeholder="contoh: 71.05.18" required />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Nama Kecamatan *</label>
+              <input v-model="kecamatanForm.nama_kecamatan" type="text" class="form-input" placeholder="contoh: Amurang Barat" required />
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Ibukota Kecamatan</label>
+              <input v-model="kecamatanForm.ibukota_kecamatan" type="text" class="form-input" placeholder="contoh: Kapitu" />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Luas Wilayah (km²)</label>
+              <input v-model.number="kecamatanForm.luas_wilayah_km2" type="number" step="0.01" class="form-input" />
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Titik Bujur (Longitude)</label>
+              <input v-model.number="kecamatanForm.center_lng" type="number" step="0.0001" class="form-input" placeholder="124.57" />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Titik Lintang (Latitude)</label>
+              <input v-model.number="kecamatanForm.center_lat" type="number" step="0.0001" class="form-input" placeholder="1.18" />
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-modal-cancel" @click="isCreateKecamatanModalOpen = false">Batal</button>
+            <button type="submit" class="btn-modal-submit">
+              <CheckCircle2 :size="15" />
+              <span>Simpan Kecamatan</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- MODAL 10: EDIT KECAMATAN                                       -->
+    <!-- ============================================================== -->
+    <div v-if="isEditKecamatanModalOpen" class="modal-backdrop" @click.self="isEditKecamatanModalOpen = false">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <Edit3 :size="18" class="text-amber" />
+            <h3 class="modal-title">Edit Kecamatan ({{ kecamatanForm.nama_kecamatan }})</h3>
+          </div>
+          <button type="button" class="btn-close-modal" @click="isEditKecamatanModalOpen = false">
+            <X :size="16" />
+          </button>
+        </div>
+
+        <form class="modal-form" @submit.prevent="handleUpdateKecamatan">
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Kode Wilayah Kemendagri *</label>
+              <input v-model="kecamatanForm.kode_kecamatan" type="text" class="form-input" required />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Nama Kecamatan *</label>
+              <input v-model="kecamatanForm.nama_kecamatan" type="text" class="form-input" required />
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Ibukota Kecamatan</label>
+              <input v-model="kecamatanForm.ibukota_kecamatan" type="text" class="form-input" />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Luas Wilayah (km²)</label>
+              <input v-model.number="kecamatanForm.luas_wilayah_km2" type="number" step="0.01" class="form-input" />
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Titik Bujur (Longitude)</label>
+              <input v-model.number="kecamatanForm.center_lng" type="number" step="0.0001" class="form-input" />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Titik Lintang (Latitude)</label>
+              <input v-model.number="kecamatanForm.center_lat" type="number" step="0.0001" class="form-input" />
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-modal-cancel" @click="isEditKecamatanModalOpen = false">Batal</button>
+            <button type="submit" class="btn-modal-submit">
+              <CheckCircle2 :size="15" />
+              <span>Simpan Perubahan</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- MODAL 11: TAMBAH DESA / KELURAHAN                             -->
+    <!-- ============================================================== -->
+    <div v-if="isCreateDesaModalOpen" class="modal-backdrop" @click.self="isCreateDesaModalOpen = false">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <Building2 :size="18" class="text-emerald" />
+            <h3 class="modal-title">Tambah Desa / Kelurahan Baru</h3>
+          </div>
+          <button type="button" class="btn-close-modal" @click="isCreateDesaModalOpen = false">
+            <X :size="16" />
+          </button>
+        </div>
+
+        <form class="modal-form" @submit.prevent="handleCreateDesa">
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Kecamatan Induk *</label>
+              <select v-model.number="desaForm.kecamatan_id" class="form-select" required>
+                <option v-for="k in kecamatanAdminList" :key="k.id" :value="k.id">
+                  {{ k.nama_kecamatan }} ({{ k.kode_kecamatan }})
+                </option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label class="form-label">Klasifikasi Wilayah *</label>
+              <select v-model="desaForm.tipe" class="form-select" required>
+                <option value="DESA">DESA</option>
+                <option value="KELURAHAN">KELURAHAN</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Kode Wilayah Kemendagri *</label>
+              <input v-model="desaForm.kode_desa" type="text" class="form-input" placeholder="contoh: 71.05.01.2001" required />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Nama Desa / Kelurahan *</label>
+              <input v-model="desaForm.nama_desa" type="text" class="form-input" placeholder="contoh: Buyungon" required />
+            </div>
+          </div>
+
+          <div class="form-row-3">
+            <div class="form-field">
+              <label class="form-label">Luas Wilayah (km²)</label>
+              <input v-model.number="desaForm.luas_wilayah_km2" type="number" step="0.01" class="form-input" />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Longitude (Bujur)</label>
+              <input v-model.number="desaForm.center_lng" type="number" step="0.0001" class="form-input" placeholder="124.57" />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Latitude (Lintang)</label>
+              <input v-model.number="desaForm.center_lat" type="number" step="0.0001" class="form-input" placeholder="1.18" />
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-modal-cancel" @click="isCreateDesaModalOpen = false">Batal</button>
+            <button type="submit" class="btn-modal-submit">
+              <CheckCircle2 :size="15" />
+              <span>Simpan Desa/Kelurahan</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- MODAL 12: EDIT DESA / KELURAHAN                               -->
+    <!-- ============================================================== -->
+    <div v-if="isEditDesaModalOpen" class="modal-backdrop" @click.self="isEditDesaModalOpen = false">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <Edit3 :size="18" class="text-amber" />
+            <h3 class="modal-title">Edit {{ desaForm.tipe }} ({{ desaForm.nama_desa }})</h3>
+          </div>
+          <button type="button" class="btn-close-modal" @click="isEditDesaModalOpen = false">
+            <X :size="16" />
+          </button>
+        </div>
+
+        <form class="modal-form" @submit.prevent="handleUpdateDesa">
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Kecamatan Induk *</label>
+              <select v-model.number="desaForm.kecamatan_id" class="form-select" required>
+                <option v-for="k in kecamatanAdminList" :key="k.id" :value="k.id">
+                  {{ k.nama_kecamatan }} ({{ k.kode_kecamatan }})
+                </option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label class="form-label">Klasifikasi Wilayah *</label>
+              <select v-model="desaForm.tipe" class="form-select" required>
+                <option value="DESA">DESA</option>
+                <option value="KELURAHAN">KELURAHAN</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Kode Wilayah Kemendagri *</label>
+              <input v-model="desaForm.kode_desa" type="text" class="form-input" required />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Nama Desa / Kelurahan *</label>
+              <input v-model="desaForm.nama_desa" type="text" class="form-input" required />
+            </div>
+          </div>
+
+          <div class="form-row-3">
+            <div class="form-field">
+              <label class="form-label">Luas Wilayah (km²)</label>
+              <input v-model.number="desaForm.luas_wilayah_km2" type="number" step="0.01" class="form-input" />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Longitude (Bujur)</label>
+              <input v-model.number="desaForm.center_lng" type="number" step="0.0001" class="form-input" />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Latitude (Lintang)</label>
+              <input v-model.number="desaForm.center_lat" type="number" step="0.0001" class="form-input" />
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-modal-cancel" @click="isEditDesaModalOpen = false">Batal</button>
+            <button type="submit" class="btn-modal-submit">
+              <CheckCircle2 :size="15" />
+              <span>Simpan Perubahan</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- MODAL 13: TAMBAH BASE MAP (PETA DASAR)                         -->
+    <!-- ============================================================== -->
+    <div v-if="isCreateBasemapModalOpen" class="modal-backdrop" @click.self="isCreateBasemapModalOpen = false">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <Compass :size="18" class="text-emerald" />
+            <h3 class="modal-title">Tambah Peta Dasar Baru (Base Map)</h3>
+          </div>
+          <button type="button" class="btn-close-modal" @click="isCreateBasemapModalOpen = false">
+            <X :size="16" />
+          </button>
+        </div>
+
+        <form class="modal-form" @submit.prevent="handleCreateBasemap">
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Label Tampilan *</label>
+              <input v-model="basemapForm.label" type="text" class="form-input" placeholder="contoh: ESRI World Imagery" required />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Kode Unik / Identifier *</label>
+              <input v-model="basemapForm.name" type="text" class="form-input" placeholder="contoh: esri-satellite" required />
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Tipe Layer *</label>
+              <select v-model="basemapForm.type" class="form-select" required>
+                <option value="raster">Raster Tiles (XYZ / TMS)</option>
+                <option value="vector">Vector Tiles / JSON Style</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label class="form-label">Warna Aksen / Preview (Hex)</label>
+              <div class="color-picker-row">
+                <input v-model="basemapForm.preview_color" type="color" class="form-color-picker" />
+                <input v-model="basemapForm.preview_color" type="text" class="form-input" placeholder="#334155" />
+              </div>
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label class="form-label">URL Tile Endpoint *</label>
+            <input v-model="basemapForm.tile_url" type="text" class="form-input font-mono" placeholder="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" required />
+            <span class="field-hint">Mendukung placeholder <code>{z}</code>, <code>{x}</code>, <code>{y}</code> atau endpoint Style JSON MapLibre/Mapbox.</span>
+          </div>
+
+          <div class="form-field">
+            <label class="form-label">Atribusi Hak Cipta (Attribution)</label>
+            <input v-model="basemapForm.attribution" type="text" class="form-input" placeholder="&copy; OpenStreetMap contributors" />
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Min Zoom</label>
+              <input v-model.number="basemapForm.min_zoom" type="number" min="0" max="24" class="form-input" />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Max Zoom</label>
+              <input v-model.number="basemapForm.max_zoom" type="number" min="0" max="24" class="form-input" />
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label class="form-label">Deskripsi / Ruang Lingkup Peta</label>
+            <textarea v-model="basemapForm.desc" class="form-textarea" rows="2" placeholder="Peta citra satelit resolusi tinggi global dengan akurasi sub-meter."></textarea>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-modal-cancel" @click="isCreateBasemapModalOpen = false">Batal</button>
+            <button type="submit" class="btn-modal-submit">
+              <CheckCircle2 :size="15" />
+              <span>Simpan Peta Dasar</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- MODAL 14: EDIT BASE MAP (PETA DASAR)                           -->
+    <!-- ============================================================== -->
+    <div v-if="isEditBasemapModalOpen" class="modal-backdrop" @click.self="isEditBasemapModalOpen = false">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <Edit3 :size="18" class="text-amber" />
+            <h3 class="modal-title">Edit Peta Dasar ({{ basemapForm.label }})</h3>
+          </div>
+          <button type="button" class="btn-close-modal" @click="isEditBasemapModalOpen = false">
+            <X :size="16" />
+          </button>
+        </div>
+
+        <form class="modal-form" @submit.prevent="handleUpdateBasemap">
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Label Tampilan *</label>
+              <input v-model="basemapForm.label" type="text" class="form-input" required />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Kode Unik / Identifier</label>
+              <input v-model="basemapForm.name" type="text" class="form-input" readonly disabled />
+              <span class="field-hint">Identifier sistem tidak dapat diubah.</span>
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Tipe Layer *</label>
+              <select v-model="basemapForm.type" class="form-select" required>
+                <option value="raster">Raster Tiles (XYZ / TMS)</option>
+                <option value="vector">Vector Tiles / JSON Style</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label class="form-label">Warna Aksen / Preview (Hex)</label>
+              <div class="color-picker-row">
+                <input v-model="basemapForm.preview_color" type="color" class="form-color-picker" />
+                <input v-model="basemapForm.preview_color" type="text" class="form-input" />
+              </div>
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label class="form-label">URL Tile Endpoint *</label>
+            <input v-model="basemapForm.tile_url" type="text" class="form-input font-mono" required />
+          </div>
+
+          <div class="form-field">
+            <label class="form-label">Atribusi Hak Cipta (Attribution)</label>
+            <input v-model="basemapForm.attribution" type="text" class="form-input" />
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Min Zoom</label>
+              <input v-model.number="basemapForm.min_zoom" type="number" min="0" max="24" class="form-input" />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Max Zoom</label>
+              <input v-model.number="basemapForm.max_zoom" type="number" min="0" max="24" class="form-input" />
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label class="form-label">Deskripsi / Ruang Lingkup Peta</label>
+            <textarea v-model="basemapForm.desc" class="form-textarea" rows="2"></textarea>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-modal-cancel" @click="isEditBasemapModalOpen = false">Batal</button>
             <button type="submit" class="btn-modal-submit">
               <CheckCircle2 :size="15" />
               <span>Simpan Perubahan</span>
@@ -5210,5 +6465,402 @@ onMounted(() => {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+/* ============================================================== */
+/* SUBNAV PILL GROUP (WILAYAH KECAMATAN / DESA)                   */
+/* ============================================================== */
+.subnav-pill-group {
+  display: flex;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 4px;
+}
+
+.subnav-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #94a3b8;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.subnav-pill:hover {
+  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.subnav-pill.active {
+  background: #0284c7;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+}
+
+/* ============================================================== */
+/* KECAMATAN GRID & CARD STYLES                                   */
+/* ============================================================== */
+.kecamatan-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.kec-admin-card {
+  background: rgba(30, 41, 59, 0.75);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s ease;
+}
+
+.kec-admin-card:hover {
+  border-color: rgba(56, 189, 248, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.kec-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.kec-code {
+  font-size: 0.75rem;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.badge-total-desa {
+  font-size: 0.72rem;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.12);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+.kec-name {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #f1f5f9;
+  margin: 0 0 12px 0;
+}
+
+.kec-info-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+  font-size: 0.8rem;
+}
+
+.kec-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.kec-info-row .info-lbl {
+  color: #64748b;
+}
+
+.kec-info-row .info-val {
+  color: #cbd5e1;
+  font-weight: 500;
+}
+
+.kec-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+/* ============================================================== */
+/* DESA & KELURAHAN BADGES                                        */
+/* ============================================================== */
+.tipe-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tipe-desa {
+  background: rgba(14, 165, 233, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(14, 165, 233, 0.3);
+}
+
+.tipe-kel {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.badge-kec {
+  font-size: 0.8rem;
+  color: #f8fafc;
+  background: rgba(51, 65, 85, 0.6);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* ============================================================== */
+/* BASEMAP ADMIN GRID & CARD STYLES                               */
+/* ============================================================== */
+.basemap-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 18px;
+  margin-top: 16px;
+}
+
+.basemap-admin-card {
+  background: rgba(30, 41, 59, 0.75);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s ease;
+}
+
+.basemap-admin-card:hover {
+  border-color: rgba(56, 189, 248, 0.35);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.basemap-admin-card.is-default-card {
+  border-color: rgba(234, 179, 8, 0.5);
+  box-shadow: 0 0 16px rgba(234, 179, 8, 0.15);
+}
+
+.bm-card-header {
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 48px;
+  position: relative;
+}
+
+.bm-header-badges {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.badge-default-bm {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(234, 179, 8, 0.95);
+  color: #0f172a;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.badge-type-bm {
+  background: rgba(15, 23, 42, 0.7);
+  color: #e2e8f0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  backdrop-filter: blur(4px);
+}
+
+.bm-header-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: #f1f5f9;
+  font-weight: 500;
+  background: rgba(15, 23, 42, 0.6);
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.bm-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.bm-status-dot.dot-active {
+  background: #10b981;
+  box-shadow: 0 0 6px #10b981;
+}
+
+.bm-status-dot.dot-inactive {
+  background: #64748b;
+}
+
+.bm-card-body {
+  padding: 16px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bm-label {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #f1f5f9;
+  margin: 0;
+}
+
+.bm-name {
+  font-size: 0.75rem;
+  color: #38bdf8;
+}
+
+.bm-desc {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.bm-url-box {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.72rem;
+  margin-top: 4px;
+}
+
+.bm-url-lbl {
+  display: block;
+  color: #64748b;
+  margin-bottom: 2px;
+  font-weight: 500;
+}
+
+.bm-url-val {
+  color: #a5b4fc;
+  word-break: break-all;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.bm-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.72rem;
+  color: #64748b;
+  margin-top: 6px;
+}
+
+.bm-card-footer {
+  padding: 12px 16px;
+  background: rgba(15, 23, 42, 0.4);
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-bm-default {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-bm-default:hover {
+  background: rgba(245, 158, 11, 0.25);
+  color: #fbbf24;
+}
+
+.btn-warn {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.btn-warn:hover {
+  background: rgba(245, 158, 11, 0.25);
+  color: #fbbf24;
+}
+
+.btn-success {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.btn-success:hover {
+  background: rgba(16, 185, 129, 0.25);
+  color: #34d399;
+}
+
+.color-picker-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.form-color-picker {
+  width: 40px;
+  height: 38px;
+  border-radius: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: transparent;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.field-hint {
+  display: block;
+  font-size: 0.72rem;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+.field-hint code {
+  color: #38bdf8;
+  background: rgba(15, 23, 42, 0.5);
+  padding: 1px 4px;
+  border-radius: 3px;
 }
 </style>

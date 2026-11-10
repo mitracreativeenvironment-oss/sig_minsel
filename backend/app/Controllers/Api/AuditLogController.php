@@ -223,3 +223,4 @@ class AuditLogController extends BaseApiController
         return $this->respondSuccess($recorded, 'Log audit berhasil dicatat.');
     }
 }
+

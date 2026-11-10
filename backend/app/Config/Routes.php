@@ -79,4 +79,23 @@ $routes->group('spasials', static function ($routes) {
     // Modul Analitik & Statistik Pengunjung Geoportal Terintegrasi
     $routes->get('analytics/summary', 'Api\VisitorAnalyticsController::getSummary');
     $routes->post('analytics/track', 'Api\VisitorAnalyticsController::track');
+
+    // Modul CRUD Wilayah: Kecamatan, Kelurahan & Desa (Superadmin & Admin)
+    $routes->get('admin/wilayah/kecamatan', 'Api\WilayahController::getAdminKecamatan');
+    $routes->post('admin/wilayah/kecamatan/create', 'Api\WilayahController::createKecamatan');
+    $routes->post('admin/wilayah/kecamatan/update', 'Api\WilayahController::updateKecamatan');
+    $routes->post('admin/wilayah/kecamatan/delete', 'Api\WilayahController::deleteKecamatan');
+    $routes->get('admin/wilayah/desa', 'Api\WilayahController::getAdminDesa');
+    $routes->post('admin/wilayah/desa/create', 'Api\WilayahController::createDesa');
+    $routes->post('admin/wilayah/desa/update', 'Api\WilayahController::updateDesa');
+    $routes->post('admin/wilayah/desa/delete', 'Api\WilayahController::deleteDesa');
+
+    // Modul CRUD Base Map (Peta Dasar) Superadmin & Geoportal
+    $routes->get('basemaps', 'Api\BaseMapController::getPublicBasemaps');
+    $routes->get('admin/basemaps', 'Api\BaseMapController::getAdminBasemaps');
+    $routes->post('admin/basemaps/create', 'Api\BaseMapController::createBasemap');
+    $routes->post('admin/basemaps/update', 'Api\BaseMapController::updateBasemap');
+    $routes->post('admin/basemaps/toggle', 'Api\BaseMapController::toggleBasemap');
+    $routes->post('admin/basemaps/set-default', 'Api\BaseMapController::setDefault');
+    $routes->post('admin/basemaps/delete', 'Api\BaseMapController::deleteBasemap');
 });

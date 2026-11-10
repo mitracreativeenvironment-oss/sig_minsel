@@ -144,3 +144,4 @@ class VisitorAnalyticsController extends BaseApiController
         ], 'Kunjungan berhasil direkam.');
     }
 }
+

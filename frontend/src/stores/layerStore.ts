@@ -1,20 +1,11 @@
 import { defineStore } from 'pinia';
 import { sigApi } from '../services/api';
-import type { KategoriLayer } from '../types';
-
-export type BasemapType =
-  | 'carto-positron'
-  | 'carto-dark'
-  | 'carto-voyager'
-  | 'osm'
-  | 'esri-topo'
-  | 'esri-street'
-  | 'esri-satellite'
-  | 'opentopo';
+import type { KategoriLayer, BaseMapItem } from '../types';
 
 export const useLayerStore = defineStore('layer', {
   state: () => ({
-    activeBasemap: 'carto-positron' as BasemapType,
+    activeBasemap: 'carto-positron' as string,
+    basemaps: [] as BaseMapItem[],
     categories: [] as KategoriLayer[],
     activeLayers: ['admin_wilayah', 'pemerintahan', 'kesehatan', 'pariwisata'] as string[],
     isFocusMinselActive: true, // Tampilan Default: Blur + Grayscale Luar Minsel Aktif
@@ -22,6 +13,20 @@ export const useLayerStore = defineStore('layer', {
   }),
 
   actions: {
+    async loadBasemaps() {
+      try {
+        const res = await sigApi.getPublicBasemaps();
+        if (res.data?.basemaps?.length) {
+          this.basemaps = res.data.basemaps;
+          if (res.data.default?.name) {
+            this.activeBasemap = res.data.default.name;
+          }
+        }
+      } catch (err) {
+        console.warn('Gagal memuat basemap dari API:', err);
+      }
+    },
+
     async loadCategories() {
       this.isLoading = true;
       try {
@@ -36,8 +41,8 @@ export const useLayerStore = defineStore('layer', {
       }
     },
 
-    setBasemap(type: BasemapType) {
-      this.activeBasemap = type;
+    setBasemap(name: string) {
+      this.activeBasemap = name;
     },
 
     toggleLayer(kode: string) {

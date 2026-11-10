@@ -16,7 +16,10 @@ import type {
   OpdItem,
   KategoriSpasialItem,
   AuditLogItem,
-  VisitorSummary
+  VisitorSummary,
+  KecamatanAdminItem,
+  DesaAdminItem,
+  BaseMapItem
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/spasials';
@@ -456,6 +459,178 @@ export const sigApi = {
     return request('/analytics/track', {
       method: 'POST',
       body: JSON.stringify(payload)
+    });
+  },
+
+  // ==========================================
+  // CRUD WILAYAH: KECAMATAN
+  // ==========================================
+
+  async getKecamatanAdmin(): Promise<{ data: KecamatanAdminItem[]; message: string }> {
+    return request('/admin/wilayah/kecamatan');
+  },
+
+  async createKecamatan(payload: {
+    nama_kecamatan: string;
+    kode_kecamatan: string;
+    ibukota_kecamatan?: string;
+    luas_wilayah_km2?: number;
+    center_lng?: number;
+    center_lat?: number;
+  }): Promise<{ data: KecamatanAdminItem; message: string }> {
+    return request('/admin/wilayah/kecamatan/create', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  async updateKecamatan(payload: {
+    id: number;
+    nama_kecamatan?: string;
+    kode_kecamatan?: string;
+    ibukota_kecamatan?: string;
+    luas_wilayah_km2?: number;
+    center_lng?: number;
+    center_lat?: number;
+  }): Promise<{ data: any; message: string }> {
+    return request('/admin/wilayah/kecamatan/update', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  async deleteKecamatan(id: number): Promise<{ data: { id: number }; message: string }> {
+    return request('/admin/wilayah/kecamatan/delete', {
+      method: 'POST',
+      body: JSON.stringify({ id })
+    });
+  },
+
+  // ==========================================
+  // CRUD WILAYAH: KELURAHAN & DESA
+  // ==========================================
+
+  async getDesaAdmin(params?: {
+    kecamatan_id?: number;
+    tipe?: 'DESA' | 'KELURAHAN' | '';
+    search?: string;
+  }): Promise<{ data: DesaAdminItem[]; message: string }> {
+    const q = new URLSearchParams();
+    if (params?.kecamatan_id) q.set('kecamatan_id', params.kecamatan_id.toString());
+    if (params?.tipe) q.set('tipe', params.tipe);
+    if (params?.search) q.set('search', params.search);
+    const qs = q.toString() ? `?${q.toString()}` : '';
+    return request(`/admin/wilayah/desa${qs}`);
+  },
+
+  async createDesa(payload: {
+    nama_desa: string;
+    kode_desa?: string;
+    tipe?: 'DESA' | 'KELURAHAN';
+    kecamatan_id: number;
+    luas_wilayah_km2?: number;
+    center_lng?: number;
+    center_lat?: number;
+  }): Promise<{ data: DesaAdminItem; message: string }> {
+    return request('/admin/wilayah/desa/create', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  async updateDesa(payload: {
+    id: number;
+    nama_desa?: string;
+    kode_desa?: string;
+    tipe?: 'DESA' | 'KELURAHAN';
+    kecamatan_id?: number;
+    luas_wilayah_km2?: number;
+    center_lng?: number;
+    center_lat?: number;
+  }): Promise<{ data: any; message: string }> {
+    return request('/admin/wilayah/desa/update', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  async deleteDesa(id: number): Promise<{ data: { id: number }; message: string }> {
+    return request('/admin/wilayah/desa/delete', {
+      method: 'POST',
+      body: JSON.stringify({ id })
+    });
+  },
+
+  // ==========================================
+  // CRUD BASE MAP (PETA DASAR) SUPERADMIN
+  // ==========================================
+
+  async getPublicBasemaps(): Promise<{
+    data: {
+      basemaps: BaseMapItem[];
+      default: BaseMapItem | null;
+    };
+    message: string;
+  }> {
+    return request('/basemaps');
+  },
+
+  async getAdminBasemaps(): Promise<{ data: BaseMapItem[]; message: string }> {
+    return request('/admin/basemaps');
+  },
+
+  async createBasemap(payload: {
+    name?: string;
+    label: string;
+    desc?: string;
+    type?: 'raster' | 'vector';
+    tile_url: string;
+    attribution?: string;
+    max_zoom?: number;
+    min_zoom?: number;
+    preview_color?: string;
+  }): Promise<{ data: BaseMapItem; message: string }> {
+    return request('/admin/basemaps/create', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  async updateBasemap(payload: {
+    id: number;
+    label?: string;
+    desc?: string;
+    type?: 'raster' | 'vector';
+    tile_url?: string;
+    attribution?: string;
+    max_zoom?: number;
+    min_zoom?: number;
+    preview_color?: string;
+  }): Promise<{ data: BaseMapItem; message: string }> {
+    return request('/admin/basemaps/update', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  async toggleBasemap(id: number): Promise<{ data: BaseMapItem; message: string }> {
+    return request('/admin/basemaps/toggle', {
+      method: 'POST',
+      body: JSON.stringify({ id })
+    });
+  },
+
+  async setDefaultBasemap(id: number): Promise<{ data: BaseMapItem; message: string }> {
+    return request('/admin/basemaps/set-default', {
+      method: 'POST',
+      body: JSON.stringify({ id })
+    });
+  },
+
+  async deleteBasemap(id: number): Promise<{ data: { id: number }; message: string }> {
+    return request('/admin/basemaps/delete', {
+      method: 'POST',
+      body: JSON.stringify({ id })
     });
   }
 };

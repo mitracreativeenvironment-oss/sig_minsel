@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { useLayerStore, type BasemapType } from '../stores/layerStore';
+import { useLayerStore } from '../stores/layerStore';
 import { notify } from '../services/alert';
 import {
   Layers,
@@ -19,13 +19,13 @@ const layerStore = useLayerStore();
 const layerSearchQuery = ref('');
 
 interface BasemapOption {
-  id: BasemapType;
+  id: string;
   label: string;
   category: string;
   badge?: string;
 }
 
-const basemapOptions: BasemapOption[] = [
+const fallbackBasemaps: BasemapOption[] = [
   { id: 'carto-positron', label: 'Positron (Light)', category: 'Minimalis', badge: 'Rekomendasi' },
   { id: 'carto-voyager', label: 'Voyager (Lengkap)', category: 'Jalan & POI' },
   { id: 'esri-street', label: 'Esri Street Poros', category: 'Jalan Nasional' },
@@ -35,6 +35,18 @@ const basemapOptions: BasemapOption[] = [
   { id: 'esri-satellite', label: 'Citra Satelit', category: 'Foto Udara' },
   { id: 'carto-dark', label: 'Dark Matter', category: 'Mode Gelap' }
 ];
+
+const dynamicBasemaps = computed(() => {
+  if (layerStore.basemaps && layerStore.basemaps.length > 0) {
+    return layerStore.basemaps.map((b) => ({
+      id: b.name,
+      label: b.label,
+      category: b.type === 'vector' ? 'Vector' : 'Raster',
+      badge: b.is_default ? 'Default' : undefined
+    }));
+  }
+  return fallbackBasemaps;
+});
 
 const thematicLayers = [
   { kode: 'admin_wilayah', label: 'Batas Kecamatan & Desa', icon: Landmark, color: '#2563eb' },
@@ -102,11 +114,11 @@ function handleFocusToggle() {
     <div class="control-section">
       <div class="section-title">
         <MapIcon :size="16" class="icon-section" />
-        <span>Peta Dasar Bebas Akses ({{ basemapOptions.length }} Basemap)</span>
+        <span>Peta Dasar Bebas Akses ({{ dynamicBasemaps.length }} Basemap)</span>
       </div>
       <div class="basemap-grid">
         <button
-          v-for="b in basemapOptions"
+          v-for="b in dynamicBasemaps"
           :key="b.id"
           :class="['basemap-btn', { active: layerStore.activeBasemap === b.id }]"
           @click="handleBasemapSelect(b)"

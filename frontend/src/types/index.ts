@@ -309,3 +309,53 @@ export interface VisitorSummary {
   }>;
   terakhir_diperbarui: string;
 }
+
+// ==========================================
+// CRUD WILAYAH: KECAMATAN, KELURAHAN & DESA
+// ==========================================
+
+export interface KecamatanAdminItem {
+  id: number;
+  kabupaten_id: number;
+  kode_kecamatan: string;
+  nama_kecamatan: string;
+  ibukota_kecamatan: string;
+  luas_wilayah_km2: number;
+  center_lng: number;
+  center_lat: number;
+  total_desa: number;
+}
+
+export interface DesaAdminItem {
+  id: number;
+  kabupaten_id: number;
+  kecamatan_id: number;
+  nama_kecamatan: string;
+  kode_desa: string;
+  nama_desa: string;
+  tipe: 'DESA' | 'KELURAHAN';
+  luas_wilayah_km2: number;
+  center_lng: number;
+  center_lat: number;
+}
+
+// ==========================================
+// CRUD BASE MAP (PETA DASAR) SUPERADMIN
+// ==========================================
+
+export interface BaseMapItem {
+  id: number;
+  name: string;
+  label: string;
+  desc: string;
+  type: 'raster' | 'vector';
+  tile_url: string;
+  attribution: string;
+  max_zoom: number;
+  min_zoom: number;
+  preview_color: string;
+  is_active: boolean;
+  is_default: boolean;
+  is_system?: boolean;
+  created_at?: string;
+}

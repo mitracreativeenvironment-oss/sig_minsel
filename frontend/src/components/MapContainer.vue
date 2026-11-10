@@ -269,10 +269,41 @@ const basemapStyles: Record<string, string | maplibregl.StyleSpecification> = {
   }
 };
 
+function getBasemapStyle(name: string): string | maplibregl.StyleSpecification {
+  const custom = layerStore.basemaps.find((b) => b.name === name);
+  if (custom) {
+    if (custom.type === 'vector') {
+      return custom.tile_url;
+    }
+    return {
+      version: 8,
+      sources: {
+        [`basemap-${custom.name}`]: {
+          type: 'raster',
+          tiles: [custom.tile_url],
+          tileSize: 256,
+          attribution: custom.attribution || '&copy; GeoMinsel'
+        }
+      },
+      layers: [
+        {
+          id: `basemap-${custom.name}-layer`,
+          type: 'raster',
+          source: `basemap-${custom.name}`,
+          minzoom: custom.min_zoom ?? 0,
+          maxzoom: custom.max_zoom ?? 19
+        }
+      ]
+    };
+  }
+
+  return basemapStyles[name] || basemapStyles['carto-positron'];
+}
+
 const initMap = () => {
   if (!mapContainer.value) return;
 
-  const style = basemapStyles[layerStore.activeBasemap];
+  const style = getBasemapStyle(layerStore.activeBasemap);
 
   map = new maplibregl.Map({
     container: mapContainer.value,
@@ -677,7 +708,7 @@ watch(
 // Watcher pergantian basemap -> Rekonstruksi layer spasial & fokus teritorial Minsel
 watch(() => layerStore.activeBasemap, (newBasemap) => {
   if (!map) return;
-  const style = basemapStyles[newBasemap];
+  const style = getBasemapStyle(newBasemap);
   map.setStyle(style);
   map.once('style.load', () => {
     loadSpatialData();

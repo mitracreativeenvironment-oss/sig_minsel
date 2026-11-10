@@ -37,6 +37,7 @@ onMounted(async () => {
   sigApi.trackVisitor({ page: 'geoportal_map' }).catch(() => {});
   authStore.initFromStorage();
   await wilayahStore.init();
+  await layerStore.loadBasemaps();
   await layerStore.loadCategories();
   await authStore.loadRoles();
 });
