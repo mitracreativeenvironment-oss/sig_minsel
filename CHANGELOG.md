@@ -11,6 +11,14 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 
 ---
 
+## [0.5.0] - 2026-11-10
+
+### Keterangan Perubahan
+- Implementasi Landing Page Three.js Scrollytelling, Login Lengkap 8 Role & Dashboard Tata Kelola Spasial
+- feat(ui): implement Three.js scrollytelling landing page, 8-role auth system & comprehensive dashboard (b3ea909)
+
+---
+
 ## [0.4.1] - 2026-11-10
 
 ### Keterangan Perubahan
@@ -60,6 +68,7 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 - Workflow otomasi CI/CD & GitHub Releases (`.github/workflows/release.yml`, `.github/workflows/ci.yml`).
 - Skema dasar basis data spasial (tabel batas administrasi kecamatan/desa dan objek tematik).
 - Konfigurasi `.gitignore` menyeluruh untuk CI4, Vue 3, GIS, dan cPanel.
+
 
 
 
