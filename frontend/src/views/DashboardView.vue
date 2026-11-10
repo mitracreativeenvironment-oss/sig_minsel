@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useAuthStore } from '../stores/authStore';
 import { sigApi } from '../services/api';
 import { notify, confirmDialog, promptNoteDialog, showDetailDialog } from '../services/alert';
+import PaginationControl from '../components/PaginationControl.vue';
 import type {
   RoleName,
   DatasetItem,
@@ -377,6 +378,87 @@ function resetAuditFilters() {
   auditFilterAksi.value = '';
   notify.info('Filter Audit Direset', 'Kriteria pencarian audit log dikosongkan.');
 }
+
+// ==========================================
+// PAGINATION STATES & COMPUTED SLICES
+// ==========================================
+
+// 1. Datasets Pagination
+const pageDatasets = ref(1);
+const pageSizeDatasets = ref(6);
+const paginatedDatasets = computed(() => {
+  const start = (pageDatasets.value - 1) * pageSizeDatasets.value;
+  return filteredDatasets.value.slice(start, start + pageSizeDatasets.value);
+});
+watch([searchQuery, filterStatus, filterKecamatan, filterGeometri, filterOpd], () => {
+  pageDatasets.value = 1;
+});
+
+// 2. Validation Queue Pagination
+const pageValidation = ref(1);
+const pageSizeValidation = ref(10);
+const paginatedValidationDatasets = computed(() => {
+  const start = (pageValidation.value - 1) * pageSizeValidation.value;
+  return filteredValidationDatasets.value.slice(start, start + pageSizeValidation.value);
+});
+watch(searchValidationQuery, () => {
+  pageValidation.value = 1;
+});
+
+// 3. Approval Queue Pagination
+const pageApproval = ref(1);
+const pageSizeApproval = ref(10);
+const paginatedApprovalDatasets = computed(() => {
+  const start = (pageApproval.value - 1) * pageSizeApproval.value;
+  return filteredApprovalDatasets.value.slice(start, start + pageSizeApproval.value);
+});
+watch(searchApprovalQuery, () => {
+  pageApproval.value = 1;
+});
+
+// 4. Users Pagination
+const pageUsers = ref(1);
+const pageSizeUsers = ref(10);
+const paginatedUsers = computed(() => {
+  const start = (pageUsers.value - 1) * pageSizeUsers.value;
+  return filteredUsers.value.slice(start, start + pageSizeUsers.value);
+});
+watch([searchUserQuery, filterUserRole], () => {
+  pageUsers.value = 1;
+});
+
+// 5. OPD Pagination
+const pageOpd = ref(1);
+const pageSizeOpd = ref(10);
+const paginatedOpds = computed(() => {
+  const start = (pageOpd.value - 1) * pageSizeOpd.value;
+  return filteredOpds.value.slice(start, start + pageSizeOpd.value);
+});
+watch(searchOpdQuery, () => {
+  pageOpd.value = 1;
+});
+
+// 6. Kategori Spasial Pagination
+const pageKategori = ref(1);
+const pageSizeKategori = ref(8);
+const paginatedKategoris = computed(() => {
+  const start = (pageKategori.value - 1) * pageSizeKategori.value;
+  return filteredKategoris.value.slice(start, start + pageSizeKategori.value);
+});
+watch(searchKategoriQuery, () => {
+  pageKategori.value = 1;
+});
+
+// 7. Audit Trail Pagination
+const pageAudit = ref(1);
+const pageSizeAudit = ref(10);
+const paginatedAuditLogs = computed(() => {
+  const start = (pageAudit.value - 1) * pageSizeAudit.value;
+  return filteredAuditLogs.value.slice(start, start + pageSizeAudit.value);
+});
+watch([auditSearchQuery, auditFilterKategori, auditFilterAksi], () => {
+  pageAudit.value = 1;
+});
 
 // ==========================================
 // HAK AKSES ROLE (ROLE PERMISSIONS)
@@ -1152,6 +1234,28 @@ const filteredDesas = computed(() => {
   });
 });
 
+// 8. Kecamatan Pagination
+const pageKecamatan = ref(1);
+const pageSizeKecamatan = ref(9);
+const paginatedKecamatans = computed(() => {
+  const start = (pageKecamatan.value - 1) * pageSizeKecamatan.value;
+  return filteredKecamatans.value.slice(start, start + pageSizeKecamatan.value);
+});
+watch(searchKecamatanQuery, () => {
+  pageKecamatan.value = 1;
+});
+
+// 9. Desa & Kelurahan Pagination
+const pageDesa = ref(1);
+const pageSizeDesa = ref(15);
+const paginatedDesas = computed(() => {
+  const start = (pageDesa.value - 1) * pageSizeDesa.value;
+  return filteredDesas.value.slice(start, start + pageSizeDesa.value);
+});
+watch([searchDesaQuery, filterDesaKecamatan, filterDesaTipe], () => {
+  pageDesa.value = 1;
+});
+
 async function loadKecamatans() {
   isWilayahLoading.value = true;
   try {
@@ -1335,6 +1439,17 @@ const filteredBasemaps = computed(() => {
 
     return matchSearch && matchType && matchStatus;
   });
+});
+
+// 10. Basemaps Pagination
+const pageBasemaps = ref(1);
+const pageSizeBasemaps = ref(6);
+const paginatedBasemaps = computed(() => {
+  const start = (pageBasemaps.value - 1) * pageSizeBasemaps.value;
+  return filteredBasemaps.value.slice(start, start + pageSizeBasemaps.value);
+});
+watch([searchBasemapQuery, filterBasemapType, filterBasemapStatus], () => {
+  pageBasemaps.value = 1;
 });
 
 async function loadBasemapsAdmin() {
@@ -2269,7 +2384,7 @@ onMounted(() => {
           <!-- TAMPILAN 1: GRID MODE (BENTO CARDS) -->
           <div v-else-if="viewMode === 'grid'" class="dataset-grid">
             <div
-              v-for="d in filteredDatasets"
+              v-for="d in paginatedDatasets"
               :key="d.id"
               class="dataset-bento-card"
             >
@@ -2405,11 +2520,16 @@ onMounted(() => {
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="d in filteredDatasets" :key="d.id">
+                <tr v-for="d in paginatedDatasets" :key="d.id">
                   <td>
                     <div class="cell-main">
                       <span class="cell-title">{{ d.nama_dataset }}</span>
-                      <span class="cell-meta">{{ d.kode_dataset }} &bull; {{ d.jumlah_fitur }} fitur</span>
+                      <span class="cell-meta">
+                        {{ d.kode_dataset }} &bull; {{ d.jumlah_fitur }} fitur
+                        <span v-if="d.has_shp_file || d.file_name" class="inline-file-badge">
+                          &bull; {{ d.file_size_formatted || 'SHP ZIP' }}
+                        </span>
+                      </span>
                     </div>
                   </td>
                   <td>
@@ -2515,6 +2635,15 @@ onMounted(() => {
               </tbody>
             </table>
           </div>
+
+          <!-- Pagination Dataset Sektoral -->
+          <PaginationControl
+            v-model:page="pageDatasets"
+            v-model:pageSize="pageSizeDatasets"
+            :total="filteredDatasets.length"
+            :pageSizeOptions="[6, 12, 24, 48]"
+            label="dataset spasial"
+          />
         </div>
 
         <!-- ============================================================== -->
@@ -2555,7 +2684,7 @@ onMounted(() => {
 
           <div v-else class="cards-queue">
             <div
-              v-for="d in filteredValidationDatasets"
+              v-for="d in paginatedValidationDatasets"
               :key="d.id"
               class="validation-card"
             >
@@ -2600,6 +2729,15 @@ onMounted(() => {
               </div>
             </div>
           </div>
+
+          <!-- Pagination Antrean Validasi -->
+          <PaginationControl
+            v-model:page="pageValidation"
+            v-model:pageSize="pageSizeValidation"
+            :total="filteredValidationDatasets.length"
+            :pageSizeOptions="[5, 10, 20]"
+            label="antrean validasi"
+          />
         </div>
 
         <!-- ============================================================== -->
@@ -2640,7 +2778,7 @@ onMounted(() => {
 
           <div v-else class="cards-queue">
             <div
-              v-for="d in filteredApprovalDatasets"
+              v-for="d in paginatedApprovalDatasets"
               :key="d.id"
               class="approval-card"
             >
@@ -2673,6 +2811,15 @@ onMounted(() => {
               </div>
             </div>
           </div>
+
+          <!-- Pagination Antrean Persetujuan -->
+          <PaginationControl
+            v-model:page="pageApproval"
+            v-model:pageSize="pageSizeApproval"
+            :total="filteredApprovalDatasets.length"
+            :pageSizeOptions="[5, 10, 20]"
+            label="antrean persetujuan"
+          />
         </div>
 
         <!-- ============================================================== -->
@@ -2977,7 +3124,7 @@ onMounted(() => {
 
             <!-- Tampilan Grid Kecamatan -->
             <div v-else class="kecamatan-admin-grid">
-              <div v-for="k in filteredKecamatans" :key="k.id" class="kec-admin-card">
+              <div v-for="k in paginatedKecamatans" :key="k.id" class="kec-admin-card">
                 <div class="kec-card-top">
                   <span class="kec-code font-mono">{{ k.kode_kecamatan }}</span>
                   <span class="badge-total-desa">{{ k.total_desa }} Desa/Kel</span>
@@ -3009,6 +3156,15 @@ onMounted(() => {
                 </div>
               </div>
             </div>
+
+            <!-- Pagination Kecamatan -->
+            <PaginationControl
+              v-model:page="pageKecamatan"
+              v-model:pageSize="pageSizeKecamatan"
+              :total="filteredKecamatans.length"
+              :pageSizeOptions="[6, 9, 18, 36]"
+              label="kecamatan"
+            />
           </div>
 
           <!-- SUB-TAB 2: DESA & KELURAHAN -->
@@ -3042,7 +3198,7 @@ onMounted(() => {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="d in filteredDesas" :key="d.id">
+                  <tr v-for="d in paginatedDesas" :key="d.id">
                     <td>
                       <span class="cell-title">{{ d.nama_desa }}</span>
                     </td>
@@ -3078,6 +3234,15 @@ onMounted(() => {
                   </tr>
                 </tbody>
               </table>
+
+              <!-- Pagination Desa & Kelurahan -->
+              <PaginationControl
+                v-model:page="pageDesa"
+                v-model:pageSize="pageSizeDesa"
+                :total="filteredDesas.length"
+                :pageSizeOptions="[15, 30, 60, 120]"
+                label="desa & kelurahan"
+              />
             </div>
           </div>
         </div>
@@ -3159,7 +3324,7 @@ onMounted(() => {
 
           <!-- Grid Peta Dasar -->
           <div v-else class="basemap-admin-grid">
-            <div v-for="b in filteredBasemaps" :key="b.id" class="basemap-admin-card" :class="{ 'is-default-card': b.is_default }">
+            <div v-for="b in paginatedBasemaps" :key="b.id" class="basemap-admin-card" :class="{ 'is-default-card': b.is_default }">
               <div class="bm-card-header" :style="{ backgroundColor: b.preview_color || '#1e293b' }">
                 <div class="bm-header-badges">
                   <span v-if="b.is_default" class="badge-default-bm">
@@ -3234,6 +3399,16 @@ onMounted(() => {
               </div>
             </div>
           </div>
+
+          <!-- Pagination Peta Dasar -->
+          <PaginationControl
+            v-if="filteredBasemaps.length > 0"
+            v-model:page="pageBasemaps"
+            v-model:pageSize="pageSizeBasemaps"
+            :total="filteredBasemaps.length"
+            :pageSizeOptions="[6, 12, 24]"
+            label="peta dasar"
+          />
         </div>
 
         <!-- ============================================================== -->
@@ -3305,7 +3480,7 @@ onMounted(() => {
           <!-- BENTO GRID VIEW FOR KATEGORI -->
           <div v-if="viewMode === 'grid'" class="bento-grid">
             <div
-              v-for="k in filteredKategoris"
+              v-for="k in paginatedKategoris"
               :key="k.id"
               class="bento-card"
             >
@@ -3375,7 +3550,7 @@ onMounted(() => {
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="k in filteredKategoris" :key="k.id">
+                <tr v-for="k in paginatedKategoris" :key="k.id">
                   <td>
                     <div class="cell-main flex-row-align">
                       <span class="color-preview-box" :style="{ backgroundColor: k.warna_default }"></span>
@@ -3425,6 +3600,16 @@ onMounted(() => {
               </tbody>
             </table>
           </div>
+
+          <!-- Pagination Kategori Spasial -->
+          <PaginationControl
+            v-if="filteredKategoris.length > 0"
+            v-model:page="pageKategori"
+            v-model:pageSize="pageSizeKategori"
+            :total="filteredKategoris.length"
+            :pageSizeOptions="[4, 8, 16, 32]"
+            label="kategori spasial"
+          />
         </div>
 
         <!-- ============================================================== -->
@@ -3496,7 +3681,7 @@ onMounted(() => {
           <!-- BENTO GRID VIEW FOR OPD -->
           <div v-if="viewMode === 'grid'" class="bento-grid">
             <div
-              v-for="o in filteredOpds"
+              v-for="o in paginatedOpds"
               :key="o.id"
               class="bento-card"
             >
@@ -3569,7 +3754,7 @@ onMounted(() => {
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="o in filteredOpds" :key="o.id">
+                <tr v-for="o in paginatedOpds" :key="o.id">
                   <td>
                     <div class="cell-main">
                       <span class="cell-title">{{ o.nama_opd }}</span>
@@ -3623,6 +3808,16 @@ onMounted(() => {
               </tbody>
             </table>
           </div>
+
+          <!-- Pagination OPD -->
+          <PaginationControl
+            v-if="filteredOpds.length > 0"
+            v-model:page="pageOpd"
+            v-model:pageSize="pageSizeOpd"
+            :total="filteredOpds.length"
+            :pageSizeOptions="[5, 10, 20, 50]"
+            label="OPD"
+          />
         </div>
 
         <!-- ============================================================== -->
@@ -3689,7 +3884,7 @@ onMounted(() => {
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="u in filteredUsers" :key="u.id">
+                <tr v-for="u in paginatedUsers" :key="u.id">
                   <td>
                     <div class="cell-main">
                       <span class="cell-title">{{ u.nama_lengkap }}</span>
@@ -3755,6 +3950,16 @@ onMounted(() => {
                 </tr>
               </tbody>
             </table>
+
+            <!-- Pagination Pengguna -->
+            <PaginationControl
+              v-if="filteredUsers.length > 0"
+              v-model:page="pageUsers"
+              v-model:pageSize="pageSizeUsers"
+              :total="filteredUsers.length"
+              :pageSizeOptions="[5, 10, 20, 50]"
+              label="pengguna"
+            />
           </div>
         </div>
 
@@ -3863,7 +4068,7 @@ onMounted(() => {
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="log in filteredAuditLogs" :key="log.id">
+                <tr v-for="log in paginatedAuditLogs" :key="log.id">
                   <td>
                     <span class="cell-time font-mono">{{ log.timestamp }}</span>
                   </td>
@@ -3909,6 +4114,15 @@ onMounted(() => {
                 </tr>
               </tbody>
             </table>
+
+            <!-- Pagination Jejak Audit -->
+            <PaginationControl
+              v-model:page="pageAudit"
+              v-model:pageSize="pageSizeAudit"
+              :total="filteredAuditLogs.length"
+              :pageSizeOptions="[10, 25, 50, 100]"
+              label="jejak audit"
+            />
           </div>
         </div>
       </section>
