@@ -27,8 +27,8 @@ class KabupatenModel extends Model
     {
         $sql = "SELECT id, kode_kabupaten, nama_kabupaten, ibukota, luas_wilayah_km2, deskripsi,
                        ST_AsGeoJSON(geom) AS geometry_geojson,
-                       ST_X(ST_Centroid(geom)) AS center_lng,
-                       ST_Y(ST_Centroid(geom)) AS center_lat
+                       ST_X(ST_Centroid(ST_SRID(geom, 0))) AS center_lng,
+                       ST_Y(ST_Centroid(ST_SRID(geom, 0))) AS center_lat
                 FROM {$this->table}
                 WHERE id = 1 OR kode_kabupaten = '71.05'
                 LIMIT 1";

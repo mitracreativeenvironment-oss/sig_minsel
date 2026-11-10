@@ -214,7 +214,14 @@ class WorkflowController extends BaseApiController
      */
     public function transition(): ResponseInterface
     {
-        $input = $this->request->getJSON(true) ?? $this->request->getPost();
+        try {
+            $input = $this->request->getJSON(true) ?? [];
+        } catch (\Throwable) {
+            $input = [];
+        }
+        if (empty($input)) {
+            $input = $this->request->getPost() ?? [];
+        }
         $datasetId = (int)($input['dataset_id'] ?? 0);
         $newStatus = trim($input['status'] ?? '');
         $catatan = trim($input['catatan'] ?? 'Transisi status berhasil dicatat');
@@ -265,7 +272,14 @@ class WorkflowController extends BaseApiController
      */
     public function uploadDataDasar(): ResponseInterface
     {
-        $input = $this->request->getJSON(true) ?? $this->request->getPost();
+        try {
+            $input = $this->request->getJSON(true) ?? [];
+        } catch (\Throwable) {
+            $input = [];
+        }
+        if (empty($input)) {
+            $input = $this->request->getPost() ?? [];
+        }
         $tipeData = strtoupper(trim($input['tipe_data'] ?? 'KECAMATAN'));
         $sumberResmi = trim($input['sumber_resmi'] ?? 'Badan Informasi Geospasial / Kemendagri');
         $tahunReferensi = (int)($input['tahun_referensi'] ?? date('Y'));

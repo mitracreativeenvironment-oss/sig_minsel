@@ -35,8 +35,8 @@ class DesaModel extends Model
                        d.kecamatan_id, k.nama_kecamatan,
                        d.kode_desa, d.nama_desa, d.tipe, d.luas_wilayah_km2,
                        ST_AsGeoJSON(d.geom) AS geometry_geojson,
-                       ST_X(ST_Centroid(d.geom)) AS center_lng,
-                       ST_Y(ST_Centroid(d.geom)) AS center_lat
+                       ST_X(ST_Centroid(ST_SRID(d.geom, 0))) AS center_lng,
+                       ST_Y(ST_Centroid(ST_SRID(d.geom, 0))) AS center_lat
                 FROM {$this->table} d
                 INNER JOIN ref_kecamatan k ON k.id = d.kecamatan_id
                 INNER JOIN ref_kabupaten b ON b.id = d.kabupaten_id
