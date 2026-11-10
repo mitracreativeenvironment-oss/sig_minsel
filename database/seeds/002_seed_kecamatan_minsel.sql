@@ -40,3 +40,4 @@ INSERT INTO `objek_spasial` (`kategori_id`, `nama_objek`, `tipe_geometri`, `desk
 (2, 'Kantor Bupati Minahasa Selatan', 'POINT', 'Pusat Pemerintahan Kabupaten Minahasa Selatan, Jl. Trans Sulawesi Kel. Pondang', 'https://minselkab.go.id/kantor-bupati.jpg', '{"pj": "Sekretariat Daerah", "status": "Aktif"}', ST_GeomFromText('POINT(124.5772 1.1824)', 4326), 1),
 (3, 'RSUD Amurang', 'POINT', 'Rumah Sakit Umum Daerah Minahasa Selatan', 'https://minselkab.go.id/rsud-amurang.jpg', '{"tipe": "Kelas C", "kapasitas": "120 Tempat Tidur"}', ST_GeomFromText('POINT(124.5821 1.1795)', 4326), 1),
 (5, 'Pantai Alar Amurang', 'POINT', 'Kawasan Wisata Bahari dan Kuliner Pesisir Teluk Amurang', 'https://minselkab.go.id/pantai-alar.jpg', '{"jenis": "Wisata Bahari", "tiket": "Gratis"}', ST_GeomFromText('POINT(124.5684 1.1887)', 4326), 1);
+
