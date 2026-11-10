@@ -293,10 +293,10 @@ onBeforeUnmount(() => {
             class="mode-switch-btn"
             :class="{ active: bgMode === '3d' }"
             @click="bgMode = '3d'"
-            title="Gunakan Animasi 3D Topografi"
+            title="Gunakan 3D Topografi PBR Berbasis Foto Nyata Lanskap Minsel"
           >
             <Globe2 :size="13" />
-            <span>3D Topografi</span>
+            <span>3D Topografi Real</span>
           </button>
         </div>
 

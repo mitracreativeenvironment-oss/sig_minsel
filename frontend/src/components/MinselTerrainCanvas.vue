@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import * as THREE from 'three';
+import elevationData from '../data/minsel_elevation_grid.json';
 
 const props = withDefaults(
   defineProps<{
@@ -30,6 +31,9 @@ let beaconsGroup: THREE.Group | null = null;
 let compassGroup: THREE.Group | null = null;
 let dataFlowGroup: THREE.Group | null = null;
 
+// Textures to dispose cleanly
+let loadedTextures: THREE.Texture[] = [];
+
 // Mouse Parallax
 const mouseX = ref(0);
 const mouseY = ref(0);
@@ -38,12 +42,12 @@ const targetMouseY = ref(0);
 
 // Key Locales in Minahasa Selatan Coordinates (3D World Space)
 const minselLocales = [
-  { name: 'Amurang (Ibu Kota)', pos: new THREE.Vector3(-14, 2.5, -4), elev: '5m', color: 0x38bdf8, code: 'AMR' },
-  { name: 'Gunung Soputan', pos: new THREE.Vector3(26, 18.5, 12), elev: '1,784m', color: 0xf59e0b, code: 'SPT' },
-  { name: 'Modoinding (Hortikultura)', pos: new THREE.Vector3(14, 9.8, -22), elev: '1,020m', color: 0x10b981, code: 'MDD' },
-  { name: 'Tumpaan (Gerbang Utara)', pos: new THREE.Vector3(-8, 3.2, 18), elev: '15m', color: 0x6366f1, code: 'TMP' },
-  { name: 'Sinonsayang (Pesisir Barat)', pos: new THREE.Vector3(-24, 2.8, -26), elev: '8m', color: 0xec4899, code: 'SNS' },
-  { name: 'Ranoyapo (Lembah Sungai)', pos: new THREE.Vector3(4, 5.5, -6), elev: '280m', color: 0x14b8a6, code: 'RNP' }
+  { name: 'Amurang (Ibu Kota & Teluk)', pos: new THREE.Vector3(-18, 0, -2), elev: '5m', color: 0x38bdf8, code: 'AMR' },
+  { name: 'Gunung Soputan (Puncak)', pos: new THREE.Vector3(34, 0, -18), elev: '1,784m', color: 0xf59e0b, code: 'SPT' },
+  { name: 'Modoinding (Hortikultura)', pos: new THREE.Vector3(20, 0, 22), elev: '1,020m', color: 0x10b981, code: 'MDD' },
+  { name: 'Tumpaan (Gerbang Utara)', pos: new THREE.Vector3(-8, 0, -26), elev: '15m', color: 0x6366f1, code: 'TMP' },
+  { name: 'Sinonsayang (Pesisir Barat)', pos: new THREE.Vector3(-26, 0, 20), elev: '8m', color: 0xec4899, code: 'SNS' },
+  { name: 'Ranoyapo (Lembah Sungai)', pos: new THREE.Vector3(4, 0, 0), elev: '280m', color: 0x14b8a6, code: 'RNP' }
 ];
 
 // Waypoint Camera Interpolation Keyframes for the 5 Sections
@@ -55,50 +59,56 @@ interface CameraWaypoint {
 
 const waypoints: CameraWaypoint[] = [
   // 0: Hero - High-Altitude Orbital Panoramic Overview
-  { pos: new THREE.Vector3(0, 52, 68), target: new THREE.Vector3(0, 4, -4), fov: 48 },
+  { pos: new THREE.Vector3(0, 52, 70), target: new THREE.Vector3(0, 4, -4), fov: 48 },
   // 1: 17 Kecamatan & Teluk Amurang - Low Oblique Coastal Flight
-  { pos: new THREE.Vector3(-28, 16, 26), target: new THREE.Vector3(-10, 3, -6), fov: 52 },
+  { pos: new THREE.Vector3(-30, 16, 24), target: new THREE.Vector3(-14, 3, -4), fov: 52 },
   // 2: Dataran Tinggi Modoinding & 28 Kategori - Climbing towards Agricultural Crater
-  { pos: new THREE.Vector3(22, 26, -6), target: new THREE.Vector3(14, 9, -22), fov: 50 },
+  { pos: new THREE.Vector3(22, 28, -6), target: new THREE.Vector3(18, 10, 20), fov: 50 },
   // 3: Tata Kelola 8 Role & Persetujuan Terpusat - Bird's-Eye Data Hub
-  { pos: new THREE.Vector3(6, 42, 14), target: new THREE.Vector3(0, 2, 0), fov: 45 },
+  { pos: new THREE.Vector3(4, 44, 16), target: new THREE.Vector3(0, 3, 0), fov: 46 },
   // 4: Call to Action - Epic Horizon Sunrise towards Soputan Peak
-  { pos: new THREE.Vector3(-18, 14, 48), target: new THREE.Vector3(24, 16, 10), fov: 48 }
+  { pos: new THREE.Vector3(-16, 16, 50), target: new THREE.Vector3(28, 18, -14), fov: 48 }
 ];
 
 const currentCamPos = new THREE.Vector3().copy(waypoints[0].pos);
 const currentCamTarget = new THREE.Vector3().copy(waypoints[0].target);
 
-// Procedural Height Calculation for Minahasa Selatan Topography
-function getMinselElevation(x: number, z: number): number {
-  // Teluk Amurang Sea Basin (West / North-West)
-  const distAmurangBay = Math.hypot(x - (-22), z - 6);
-  if (distAmurangBay < 20) {
-    return Math.max(0, (distAmurangBay / 20) * 1.5 - 0.4);
-  }
+// Topographic Elevation from Real Minahasa Selatan Photos (Bilinear Grid Interpolation)
+const GRID_WORLD_SIZE = 140;
+const MAX_ELEVATION = 22.0;
 
-  // Gunung Soputan Volcanic Cone (East / South-East)
-  const distSoputan = Math.hypot(x - 26, z - 12);
-  const soputanHeight = Math.exp(-Math.pow(distSoputan / 11, 2)) * 19.5;
+function getRealPhotoElevation(x: number, z: number): number {
+  if (!elevationData || !elevationData.data) return 1.0;
+  
+  const gridSize = elevationData.grid_size || 64;
+  // Map world x, z from [-GRID_WORLD_SIZE/2, GRID_WORLD_SIZE/2] to [0, 1]
+  const u = (x + GRID_WORLD_SIZE / 2) / GRID_WORLD_SIZE;
+  const v = (z + GRID_WORLD_SIZE / 2) / GRID_WORLD_SIZE;
 
-  // Dataran Tinggi Modoinding Basin & Danau Moat Ridge (South)
-  const distModoinding = Math.hypot(x - 14, z - (-22));
-  let modoindingHeight = 0;
-  if (distModoinding < 18) {
-    // Caldera ridge rim with plateau depression
-    const rim = Math.sin((distModoinding / 18) * Math.PI) * 3.5;
-    modoindingHeight = 8.5 + rim - (distModoinding < 8 ? 1.5 : 0);
-  }
+  if (u < 0 || u > 1 || v < 0 || v > 1) return 0.5;
 
-  // Rolling Coastal & Forested Hills (Tumpaan, Ranoyapo, Sinonsayang)
-  const rolling =
-    Math.sin(x * 0.08) * Math.cos(z * 0.08) * 3.2 +
-    Math.sin(x * 0.16 + 1.2) * 1.8 +
-    Math.cos(z * 0.14 - 0.8) * 1.5;
+  // Image row 0 is top (North, v=0), row 63 is bottom (South, v=1)
+  const row = v * (gridSize - 1);
+  const col = u * (gridSize - 1);
 
-  const baseCoastElevation = Math.max(0.2, (x + 35) * 0.18);
-  const total = baseCoastElevation + soputanHeight + modoindingHeight + rolling;
-  return Math.max(0.1, total);
+  const r0 = Math.floor(row);
+  const r1 = Math.min(gridSize - 1, r0 + 1);
+  const c0 = Math.floor(col);
+  const c1 = Math.min(gridSize - 1, c0 + 1);
+
+  const fr = row - r0;
+  const fc = col - c0;
+
+  const v00 = elevationData.data[r0][c0];
+  const v01 = elevationData.data[r0][c1];
+  const v10 = elevationData.data[r1][c0];
+  const v11 = elevationData.data[r1][c1];
+
+  const top = v00 * (1 - fc) + v01 * fc;
+  const btm = v10 * (1 - fc) + v11 * fc;
+  const rawElev = top * (1 - fr) + btm * fr;
+
+  return Math.max(0.1, rawElev * MAX_ELEVATION);
 }
 
 function initThreeScene() {
@@ -113,13 +123,13 @@ function initThreeScene() {
   renderer.setSize(width, height);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.2;
+  renderer.toneMappingExposure = 1.25;
   canvasContainer.value.appendChild(renderer.domElement);
 
   // 2. Scene & Fog Setup (Deep Maritime & Volcanic Atmosphere)
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x070d1e); // Very deep navy
-  scene.fog = new THREE.FogExp2(0x070d1e, 0.013);
+  scene.background = new THREE.Color(0x060c1d); // Very deep oceanic navy
+  scene.fog = new THREE.FogExp2(0x060c1d, 0.012);
 
   // 3. Camera Setup
   camera = new THREE.PerspectiveCamera(48, width / height, 0.5, 500);
@@ -127,148 +137,167 @@ function initThreeScene() {
   camera.lookAt(currentCamTarget);
 
   // 4. Lighting Rig
-  const ambientLight = new THREE.AmbientLight(0x1e293b, 1.8);
+  const ambientLight = new THREE.AmbientLight(0x334155, 1.9);
   scene.add(ambientLight);
 
-  // Primary Sun / Geodetic Key Light (Golden-Amber Dawn)
-  const sunLight = new THREE.DirectionalLight(0xfef08a, 2.8);
-  sunLight.position.set(40, 50, 30);
+  // Primary Sun Key Light (Warm Tropical Sunlight)
+  const sunLight = new THREE.DirectionalLight(0xfef08a, 2.9);
+  sunLight.position.set(45, 55, 30);
   scene.add(sunLight);
 
-  // Secondary Maritime Rim Light (Cyan / Ocean Reflection)
-  const oceanRimLight = new THREE.DirectionalLight(0x0284c7, 2.2);
-  oceanRimLight.position.set(-45, 20, -30);
+  // Secondary Maritime Rim Light (Cyan / Ocean Reflection from Teluk Amurang)
+  const oceanRimLight = new THREE.DirectionalLight(0x0284c7, 2.4);
+  oceanRimLight.position.set(-50, 20, -30);
   scene.add(oceanRimLight);
 
-  // Tertiary Emerald Highland Accent Light
-  const emeraldLight = new THREE.PointLight(0x10b981, 2.0, 80);
-  emeraldLight.position.set(14, 25, -22);
+  // Tertiary Emerald Highland Accent Light (Modoinding Agro Valley)
+  const emeraldLight = new THREE.PointLight(0x10b981, 2.2, 90);
+  emeraldLight.position.set(20, 25, 20);
   scene.add(emeraldLight);
 
-  // 5. Procedural 3D Terrain Construction
-  const gridSize = 140;
-  const segments = 120;
-  const terrainGeo = new THREE.PlaneGeometry(gridSize, gridSize, segments, segments);
+  // 5. Load Real Photo PBR Textures
+  const textureLoader = new THREE.TextureLoader();
+
+  // Diffuse Map: Real photo composite of Amurang & Modoinding
+  const diffuseTexture = textureLoader.load('/images/minsel/3d_terrain/minsel_topo_diffuse.jpg');
+  diffuseTexture.colorSpace = THREE.SRGBColorSpace;
+  diffuseTexture.wrapS = diffuseTexture.wrapT = THREE.ClampToEdgeWrapping;
+  loadedTextures.push(diffuseTexture);
+
+  // Normal Map: Real terrain slope vectors (OpenGL +Y Up)
+  const normalTexture = textureLoader.load('/images/minsel/3d_terrain/minsel_topo_normal.png');
+  normalTexture.colorSpace = THREE.NoColorSpace;
+  normalTexture.wrapS = normalTexture.wrapT = THREE.ClampToEdgeWrapping;
+  loadedTextures.push(normalTexture);
+
+  // Roughness Map: Soil, vegetation & water specular distinction
+  const roughnessTexture = textureLoader.load('/images/minsel/3d_terrain/minsel_topo_roughness.png');
+  roughnessTexture.colorSpace = THREE.NoColorSpace;
+  roughnessTexture.wrapS = roughnessTexture.wrapT = THREE.ClampToEdgeWrapping;
+  loadedTextures.push(roughnessTexture);
+
+  // Ambient Occlusion Map: Cavity & ravine shading
+  const aoTexture = textureLoader.load('/images/minsel/3d_terrain/minsel_topo_ao.png');
+  aoTexture.colorSpace = THREE.NoColorSpace;
+  aoTexture.wrapS = aoTexture.wrapT = THREE.ClampToEdgeWrapping;
+  loadedTextures.push(aoTexture);
+
+  // 6. 3D Terrain Construction Displaced by Real Photo Elevation
+  const segments = 130;
+  const terrainGeo = new THREE.PlaneGeometry(GRID_WORLD_SIZE, GRID_WORLD_SIZE, segments, segments);
   terrainGeo.rotateX(-Math.PI / 2);
 
-  const posAttr = terrainGeo.attributes.position;
-  const colors: number[] = [];
-  const colorLow = new THREE.Color(0x0a192f); // Deep oceanic coast
-  const colorMid = new THREE.Color(0x047857); // Lush highland forest
-  const colorHigh = new THREE.Color(0xd97706); // Volcanic ridge / Soputan
-  const colorPeak = new THREE.Color(0xfef3c7); // Soputan crest
+  // Set secondary UV for Ambient Occlusion
+  terrainGeo.attributes.uv2 = terrainGeo.attributes.uv;
 
+  const posAttr = terrainGeo.attributes.position;
   for (let i = 0; i < posAttr.count; i++) {
     const vx = posAttr.getX(i);
     const vz = posAttr.getZ(i);
-    const vy = getMinselElevation(vx, vz);
+    const vy = getRealPhotoElevation(vx, vz);
     posAttr.setY(i, vy);
-
-    // Vertex coloring based on elevation
-    const c = new THREE.Color();
-    if (vy < 2.5) {
-      c.copy(colorLow).lerp(colorMid, vy / 2.5);
-    } else if (vy < 10.0) {
-      c.copy(colorMid).lerp(colorHigh, (vy - 2.5) / 7.5);
-    } else {
-      c.copy(colorHigh).lerp(colorPeak, Math.min(1, (vy - 10) / 9));
-    }
-    colors.push(c.r, c.g, c.b);
   }
-
-  terrainGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   terrainGeo.computeVertexNormals();
 
   const terrainMat = new THREE.MeshStandardMaterial({
-    vertexColors: true,
-    roughness: 0.72,
-    metalness: 0.15,
-    flatShading: true
+    map: diffuseTexture,
+    normalMap: normalTexture,
+    normalScale: new THREE.Vector2(1.6, 1.6),
+    roughnessMap: roughnessTexture,
+    roughness: 0.82,
+    metalness: 0.12,
+    aoMap: aoTexture,
+    aoMapIntensity: 0.7,
+    flatShading: false
   });
   terrainMesh = new THREE.Mesh(terrainGeo, terrainMat);
   scene.add(terrainMesh);
 
-  // 6. Topographic Wireframe / Contour Overlay
+  // 7. Topographic Wireframe / Contour Overlay (Subtle Cartographic Grid)
   const wireGeo = new THREE.WireframeGeometry(terrainGeo);
   const wireMat = new THREE.LineBasicMaterial({
     color: 0x38bdf8,
     transparent: true,
-    opacity: 0.18
+    opacity: 0.13
   });
   wireframeMesh = new THREE.LineSegments(wireGeo, wireMat);
   scene.add(wireframeMesh);
 
-  // 7. Teluk Amurang Water Plane
-  const waterGeo = new THREE.PlaneGeometry(50, 50, 16, 16);
+  // 8. Teluk Amurang Water Plane
+  const waterGeo = new THREE.PlaneGeometry(55, 55, 20, 20);
   waterGeo.rotateX(-Math.PI / 2);
   const waterMat = new THREE.MeshStandardMaterial({
-    color: 0x0369a1,
-    roughness: 0.2,
-    metalness: 0.85,
+    color: 0x0284c7,
+    roughness: 0.15,
+    metalness: 0.9,
     transparent: true,
-    opacity: 0.75
+    opacity: 0.8
   });
   waterMesh = new THREE.Mesh(waterGeo, waterMat);
-  waterMesh.position.set(-25, 0.4, 8);
+  waterMesh.position.set(-28, 1.3, -4);
   scene.add(waterMesh);
 
-  // 8. 3D Locales Beacons & Geodetic Rings
+  // 9. 3D Locales Beacons & Geodetic Rings (Anchored to Real Terrain Surface)
   beaconsGroup = new THREE.Group();
   minselLocales.forEach((loc) => {
+    // Dynamically calculate accurate ground level from real photo elevation
+    const groundY = getRealPhotoElevation(loc.pos.x, loc.pos.z);
+    loc.pos.y = groundY;
+
     // Vertical Laser / Coordinate Line
-    const lineMat = new THREE.LineBasicMaterial({ color: loc.color, transparent: true, opacity: 0.8 });
+    const lineMat = new THREE.LineBasicMaterial({ color: loc.color, transparent: true, opacity: 0.85 });
     const lineGeo = new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(loc.pos.x, loc.pos.y, loc.pos.z),
-      new THREE.Vector3(loc.pos.x, loc.pos.y + 6.0, loc.pos.z)
+      new THREE.Vector3(loc.pos.x, loc.pos.y + 7.0, loc.pos.z)
     ]);
     const line = new THREE.Line(lineGeo, lineMat);
     beaconsGroup?.add(line);
 
     // Glowing Sphere Top Beacon
-    const beaconSphereGeo = new THREE.SphereGeometry(0.5, 16, 16);
+    const beaconSphereGeo = new THREE.SphereGeometry(0.55, 16, 16);
     const beaconSphereMat = new THREE.MeshBasicMaterial({ color: loc.color });
     const beaconSphere = new THREE.Mesh(beaconSphereGeo, beaconSphereMat);
-    beaconSphere.position.set(loc.pos.x, loc.pos.y + 6.0, loc.pos.z);
+    beaconSphere.position.set(loc.pos.x, loc.pos.y + 7.0, loc.pos.z);
     beaconsGroup?.add(beaconSphere);
 
     // Horizontal Pulsing Ground Rings
-    const ringGeo = new THREE.RingGeometry(0.8, 1.2, 32);
+    const ringGeo = new THREE.RingGeometry(0.9, 1.4, 32);
     ringGeo.rotateX(-Math.PI / 2);
-    const ringMat = new THREE.MeshBasicMaterial({ color: loc.color, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
+    const ringMat = new THREE.MeshBasicMaterial({ color: loc.color, side: THREE.DoubleSide, transparent: true, opacity: 0.65 });
     const ring = new THREE.Mesh(ringGeo, ringMat);
-    ring.position.set(loc.pos.x, loc.pos.y + 0.1, loc.pos.z);
+    ring.position.set(loc.pos.x, loc.pos.y + 0.15, loc.pos.z);
     ring.userData = { initialScale: 1.0, speed: 1.5 + Math.random() };
     beaconsGroup?.add(ring);
   });
   scene.add(beaconsGroup);
 
-  // 9. Geodetic Compass Reticle (Floating Grid)
+  // 10. Geodetic Compass Reticle (Floating Grid)
   compassGroup = new THREE.Group();
-  const outerRingGeo = new THREE.RingGeometry(18, 18.3, 64);
+  const outerRingGeo = new THREE.RingGeometry(20, 20.4, 64);
   outerRingGeo.rotateX(-Math.PI / 2);
   const outerRingMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.35, side: THREE.DoubleSide });
   const outerRing = new THREE.Mesh(outerRingGeo, outerRingMat);
-  outerRing.position.set(0, 0.5, 0);
+  outerRing.position.set(0, 1.0, 0);
   compassGroup.add(outerRing);
 
   // Crosshair Lines
   const crosshairGeo = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(-22, 0.5, 0),
-    new THREE.Vector3(22, 0.5, 0),
-    new THREE.Vector3(0, 0.5, -22),
-    new THREE.Vector3(0, 0.5, 22)
+    new THREE.Vector3(-24, 1.0, 0),
+    new THREE.Vector3(24, 1.0, 0),
+    new THREE.Vector3(0, 1.0, -24),
+    new THREE.Vector3(0, 1.0, 24)
   ]);
   const crosshairMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.25 });
   const crosshair = new THREE.LineSegments(crosshairGeo, crosshairMat);
   compassGroup.add(crosshair);
   scene.add(compassGroup);
 
-  // 10. Central Approval Data Flow Arcs (Visualizing Fase 2 Central Workflow)
+  // 11. Central Approval Data Flow Arcs
   dataFlowGroup = new THREE.Group();
   minselLocales.slice(1).forEach((loc) => {
     const curve = new THREE.QuadraticBezierCurve3(
       new THREE.Vector3(loc.pos.x, loc.pos.y + 5, loc.pos.z),
-      new THREE.Vector3((loc.pos.x + minselLocales[0].pos.x) / 2, 22, (loc.pos.z + minselLocales[0].pos.z) / 2),
+      new THREE.Vector3((loc.pos.x + minselLocales[0].pos.x) / 2, 24, (loc.pos.z + minselLocales[0].pos.z) / 2),
       new THREE.Vector3(minselLocales[0].pos.x, minselLocales[0].pos.y + 5, minselLocales[0].pos.z)
     );
     const points = curve.getPoints(40);
@@ -286,7 +315,7 @@ function initThreeScene() {
   });
   scene.add(dataFlowGroup);
 
-  // 11. Timer & Animation Loop
+  // 12. Timer & Animation Loop
   timer = new THREE.Timer();
   timer.connect(document);
 
@@ -298,32 +327,30 @@ function initThreeScene() {
 
     // Subtle Water Shimmer
     if (waterMesh) {
-      waterMesh.position.y = 0.4 + Math.sin(elapsed * 1.5) * 0.08;
+      waterMesh.position.y = 1.3 + Math.sin(elapsed * 1.5) * 0.12;
     }
 
-    // Compass Rotation
-    if (compassGroup) {
-      compassGroup.rotation.y = elapsed * 0.04;
-    }
-
-    // Pulse Beacon Rings
+    // Pulse Ground Rings
     if (beaconsGroup) {
       beaconsGroup.children.forEach((child) => {
         if (child instanceof THREE.Mesh && child.geometry instanceof THREE.RingGeometry) {
-          const speed = (child.userData.speed || 1.0) * 1.8;
-          const scale = 1.0 + ((elapsed * speed) % 2.0);
-          child.scale.set(scale, scale, scale);
-          const mat = child.material as THREE.MeshBasicMaterial;
-          mat.opacity = Math.max(0, 0.7 - (scale - 1.0) * 0.35);
+          const uData = child.userData as { speed?: number };
+          const scale = 1.0 + Math.sin(elapsed * (uData.speed || 1.5)) * 0.25;
+          child.scale.set(scale, scale, 1);
         }
       });
     }
 
-    // Interpolate Mouse Parallax
+    // Slow Compass Reticle Rotation
+    if (compassGroup) {
+      compassGroup.rotation.y = elapsed * 0.04;
+    }
+
+    // Smooth Mouse Parallax Interpolation
     targetMouseX.value += (mouseX.value - targetMouseX.value) * 0.05;
     targetMouseY.value += (mouseY.value - targetMouseY.value) * 0.05;
 
-    // Calculate Interpolated Camera Target & Position based on scroll progress
+    // Smooth Camera Waypoint Interpolation based on Horizontal Scrollytelling
     updateCameraFromScroll(props.scrollProgress, delta);
 
     renderer.render(scene, camera);
@@ -411,6 +438,10 @@ onBeforeUnmount(() => {
     }
   }
 
+  // Dispose Textures
+  loadedTextures.forEach((tex) => tex.dispose());
+  loadedTextures = [];
+
   terrainMesh?.geometry.dispose();
   (terrainMesh?.material as THREE.Material)?.dispose();
   wireframeMesh?.geometry.dispose();
@@ -426,14 +457,12 @@ onBeforeUnmount(() => {
     <div class="hud-coordinates">
       <div class="hud-pill">
         <span class="hud-pulse"></span>
-        <span class="hud-text">SRID: EPSG:4326 (WGS84) &bull; KABUPATEN MINAHASA SELATAN</span>
+        <span class="hud-text">3D TOPOGRAFI PBR &bull; FOTO UDARA ASLI MINAHASA SELATAN</span>
       </div>
       <div class="hud-meta">
-        <span>LAT: 1°11'14" N</span>
+        <span>TELUK AMURANG (0m) &bull; MODOINDING (1.020m) &bull; G. SOPUTAN (1.784m)</span>
         <span class="hud-sep">|</span>
-        <span>LONG: 124°43'47" E</span>
-        <span class="hud-sep">|</span>
-        <span>ELEV: 0 - 1,784m dpl</span>
+        <span>EPSG:4326</span>
       </div>
     </div>
   </div>
