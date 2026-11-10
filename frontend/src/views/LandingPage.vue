@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import gsap from 'gsap';
+import MinselRealScenery from '../components/MinselRealScenery.vue';
 import MinselTerrainCanvas from '../components/MinselTerrainCanvas.vue';
 import {
   Layers,
@@ -8,7 +9,9 @@ import {
   ArrowRight,
   Database,
   ChevronRight,
-  ChevronLeft
+  ChevronLeft,
+  Camera,
+  Globe2
 } from 'lucide-vue-next';
 
 const emit = defineEmits<{
@@ -22,6 +25,7 @@ const emit = defineEmits<{
 const currentProgress = ref(0); // 0.0 to 1.0
 const targetProgress = ref(0);
 const activeSection = ref(0); // 0 to 4
+const bgMode = ref<'real' | '3d'>('real'); // Default: Menggunakan Gambar / Foto Nyata Lanskap Minsel
 let rafId: number | null = null;
 const selectedZone = ref<'all' | 'pesisir' | 'tinggi' | 'tengah'>('all');
 
@@ -207,8 +211,17 @@ onBeforeUnmount(() => {
     @touchstart="onTouchStart"
     @touchmove="onTouchMove"
   >
-    <!-- Background: Peta 3D Interaktif Three.js Minahasa Selatan (Glides along with Horizontal Progress) -->
-    <MinselTerrainCanvas :scroll-progress="currentProgress" :active-section="activeSection" />
+    <!-- Background Latar: Foto Nyata Lanskap Minsel (Default) atau Peta 3D Digital -->
+    <MinselRealScenery
+      v-if="bgMode === 'real'"
+      :scroll-progress="currentProgress"
+      :active-section="activeSection"
+    />
+    <MinselTerrainCanvas
+      v-else
+      :scroll-progress="currentProgress"
+      :active-section="activeSection"
+    />
 
     <!-- Backdrop Vignette untuk Legibilitas Tinggi -->
     <div class="viewport-backdrop"></div>
@@ -265,6 +278,28 @@ onBeforeUnmount(() => {
       </nav>
 
       <div class="header-actions">
+        <!-- Switcher Mode Latar: Foto Nyata / 3D Topografi -->
+        <div class="bg-mode-switcher">
+          <button
+            class="mode-switch-btn"
+            :class="{ active: bgMode === 'real' }"
+            @click="bgMode = 'real'"
+            title="Gunakan Foto Nyata Lanskap Minahasa Selatan"
+          >
+            <Camera :size="13" />
+            <span>Foto Nyata</span>
+          </button>
+          <button
+            class="mode-switch-btn"
+            :class="{ active: bgMode === '3d' }"
+            @click="bgMode = '3d'"
+            title="Gunakan Animasi 3D Topografi"
+          >
+            <Globe2 :size="13" />
+            <span>3D Topografi</span>
+          </button>
+        </div>
+
         <button class="btn-portal" @click="emit('navigate', 'geoportal')">
           <Layers :size="16" />
           <span>Peta Interaktif</span>
@@ -756,6 +791,42 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+/* Switcher Mode Latar: Foto Nyata vs 3D Digital */
+.bg-mode-switcher {
+  display: flex;
+  align-items: center;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  padding: 3px;
+  backdrop-filter: blur(8px);
+}
+
+.mode-switch-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mode-switch-btn:hover {
+  color: #ffffff;
+}
+
+.mode-switch-btn.active {
+  background: #0284c7;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(2, 132, 199, 0.5);
 }
 
 .btn-portal {
