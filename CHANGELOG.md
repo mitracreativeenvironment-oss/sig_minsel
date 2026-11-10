@@ -11,6 +11,14 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 
 ---
 
+## [0.9.0] - 2026-11-10
+
+### Keterangan Perubahan
+- Inisialisasi basis data sig_minsel, perbaikan axis-order spasial MySQL 8, dan verifikasi sinkronisasi 8 role dashboard
+- feat(backend): inisialisasi basis data sig_minsel, migrasi spasial MySQL 8 axis-order, dan verifikasi penuh API bertoken (3bf973e)
+
+---
+
 ## [0.8.0] - 2026-11-10
 
 ### Keterangan Perubahan
@@ -165,6 +173,7 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 - Workflow otomasi CI/CD & GitHub Releases (`.github/workflows/release.yml`, `.github/workflows/ci.yml`).
 - Skema dasar basis data spasial (tabel batas administrasi kecamatan/desa dan objek tematik).
 - Konfigurasi `.gitignore` menyeluruh untuk CI4, Vue 3, GIS, dan cPanel.
+
 
 
 
