@@ -11,6 +11,7 @@ class KecamatanModel extends Model
     protected $useAutoIncrement = true;
     protected $returnType       = 'array';
     protected $allowedFields    = [
+        'kabupaten_id',
         'kode_kecamatan',
         'nama_kecamatan',
         'ibukota_kecamatan',
@@ -24,12 +25,13 @@ class KecamatanModel extends Model
      */
     public function getWithGeoJson(): array
     {
-        $sql = "SELECT id, kode_kecamatan, nama_kecamatan, ibukota_kecamatan, luas_wilayah_km2,
-                       ST_AsGeoJSON(geom) AS geometry_geojson,
-                       ST_X(ST_Centroid(geom)) AS center_lng,
-                       ST_Y(ST_Centroid(geom)) AS center_lat
-                FROM {$this->table}
-                ORDER BY nama_kecamatan ASC";
+        $sql = "SELECT k.id, k.kabupaten_id, b.nama_kabupaten, k.kode_kecamatan, k.nama_kecamatan, k.ibukota_kecamatan, k.luas_wilayah_km2,
+                       ST_AsGeoJSON(k.geom) AS geometry_geojson,
+                       ST_X(ST_Centroid(k.geom)) AS center_lng,
+                       ST_Y(ST_Centroid(k.geom)) AS center_lat
+                FROM {$this->table} k
+                LEFT JOIN ref_kabupaten b ON b.id = k.kabupaten_id
+                ORDER BY k.nama_kecamatan ASC";
 
         return $this->db->query($sql)->getResultArray();
     }
@@ -39,12 +41,13 @@ class KecamatanModel extends Model
      */
     public function getDetailWithGeoJson($idOrKode): ?array
     {
-        $sql = "SELECT id, kode_kecamatan, nama_kecamatan, ibukota_kecamatan, luas_wilayah_km2,
-                       ST_AsGeoJSON(geom) AS geometry_geojson,
-                       ST_X(ST_Centroid(geom)) AS center_lng,
-                       ST_Y(ST_Centroid(geom)) AS center_lat
-                FROM {$this->table}
-                WHERE id = ? OR kode_kecamatan = ?
+        $sql = "SELECT k.id, k.kabupaten_id, b.nama_kabupaten, k.kode_kecamatan, k.nama_kecamatan, k.ibukota_kecamatan, k.luas_wilayah_km2,
+                       ST_AsGeoJSON(k.geom) AS geometry_geojson,
+                       ST_X(ST_Centroid(k.geom)) AS center_lng,
+                       ST_Y(ST_Centroid(k.geom)) AS center_lat
+                FROM {$this->table} k
+                LEFT JOIN ref_kabupaten b ON b.id = k.kabupaten_id
+                WHERE k.id = ? OR k.kode_kecamatan = ?
                 LIMIT 1";
 
         $result = $this->db->query($sql, [$idOrKode, $idOrKode])->getRowArray();

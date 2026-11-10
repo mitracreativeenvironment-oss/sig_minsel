@@ -75,3 +75,4 @@ class ApiTokenFilter implements FilterInterface
         }
     }
 }
+

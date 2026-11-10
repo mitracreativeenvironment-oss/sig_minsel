@@ -34,3 +34,4 @@ class AuthController extends BaseApiController
         ], 'Token resmi frontend valid.');
     }
 }
+

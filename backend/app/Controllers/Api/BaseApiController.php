@@ -73,3 +73,4 @@ abstract class BaseApiController extends ResourceController
         return $this->respond($response, $code);
     }
 }
+

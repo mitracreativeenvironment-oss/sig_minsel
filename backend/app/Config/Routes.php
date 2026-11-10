@@ -20,11 +20,16 @@ $routes->group('api/v1', static function ($routes) {
     $routes->get('ping', 'Api\AuthController::ping');
     $routes->get('auth/verify', 'Api\AuthController::verify');
 
-    // Wilayah Spasial (Batas Administrasi Minahasa Selatan)
+    // Hierarki Wilayah Administrasi (Kabupaten -> Kecamatan -> Desa)
+    $routes->get('wilayah/kabupaten', 'Api\WilayahController::kabupaten');
     $routes->get('wilayah/kecamatan', 'Api\WilayahController::kecamatan');
     $routes->get('wilayah/kecamatan/(:segment)', 'Api\WilayahController::detailKecamatan/$1');
+    $routes->get('wilayah/desa', 'Api\WilayahController::desa');
+    $routes->get('wilayah/hierarchy', 'Api\WilayahController::hierarchy');
+    $routes->get('wilayah/rekap', 'Api\WilayahController::rekap');
 
     // Layer Tematik & Objek Spasial (Point, Line, Polygon)
+    // Mendukung filter: ?kecamatan_id=... & ?desa_id=... & ?bbox=...
     $routes->get('spasial/kategori', 'Api\SpasialController::kategori');
     $routes->get('spasial/layer/(:segment)', 'Api\SpasialController::getLayer/$1');
     $routes->get('spasial/objek/(:num)', 'Api\SpasialController::getObjek/$1');

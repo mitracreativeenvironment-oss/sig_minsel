@@ -42,3 +42,4 @@ class CorsFilter implements FilterInterface
         $response->setHeader('Access-Control-Max-Age', '86400');
     }
 }
+

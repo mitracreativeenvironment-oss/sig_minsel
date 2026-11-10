@@ -32,6 +32,12 @@ class ApiSecurityTest extends CIUnitTestCase
         ]);
     }
 
+    public function testApiHierarchyWithoutTokenIsUnauthorized()
+    {
+        $result = $this->get('api/v1/wilayah/hierarchy');
+        $result->assertStatus(401);
+    }
+
     public function testApiWithInvalidTokenIsForbidden()
     {
         $result = $this->withHeaders([
