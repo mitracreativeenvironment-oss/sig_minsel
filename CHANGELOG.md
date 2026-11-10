@@ -11,6 +11,15 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 
 ---
 
+## [0.5.1] - 2026-11-10
+
+### Keterangan Perubahan
+- Ganti bar statistik bawah dengan toggle lokasi saya (GPS On/Off) & integrasi 8 basemap gratis lengkap
+- feat(gis): add user location toggle (on/off) and 8 comprehensive free basemaps (41b550f)
+- feat(branding): add Minahasa Selatan official logo concepts and web favicon kit (eade585)
+
+---
+
 ## [0.5.0] - 2026-11-10
 
 ### Keterangan Perubahan
@@ -68,6 +77,7 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 - Workflow otomasi CI/CD & GitHub Releases (`.github/workflows/release.yml`, `.github/workflows/ci.yml`).
 - Skema dasar basis data spasial (tabel batas administrasi kecamatan/desa dan objek tematik).
 - Konfigurasi `.gitignore` menyeluruh untuk CI4, Vue 3, GIS, dan cPanel.
+
 
 
 
