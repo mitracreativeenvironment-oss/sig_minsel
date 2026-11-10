@@ -1,4 +1,4 @@
-# Changelog
+﻿# Changelog
 
 Semua perubahan penting pada proyek **SIG Minahasa Selatan** didokumentasikan di berkas ini.
 
@@ -8,6 +8,14 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 ---
 
 ## [Unreleased]
+
+---
+
+## [0.2.0] - 2026-11-10
+
+### Keterangan Perubahan
+- Implementasi Backend CI4 Full API dengan proteksi token resmi frontend dan auto-redirect non-API
+- style(seed): rapikan baris akhir berkas seed spasial (618aa75)
 
 ### Planned
 - Inisialisasi kerangka CodeIgniter 4 REST API
@@ -31,4 +39,5 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 - Workflow otomasi CI/CD & GitHub Releases (`.github/workflows/release.yml`, `.github/workflows/ci.yml`).
 - Skema dasar basis data spasial (tabel batas administrasi kecamatan/desa dan objek tematik).
 - Konfigurasi `.gitignore` menyeluruh untuk CI4, Vue 3, GIS, dan cPanel.
+
 

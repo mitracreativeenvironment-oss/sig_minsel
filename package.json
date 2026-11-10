@@ -1,32 +1,31 @@
-{
-  "name": "sig_minsel",
-  "version": "0.1.0",
-  "description": "Sistem Informasi Geografis (SIG) Kabupaten Minahasa Selatan",
-  "private": true,
-  "scripts": {
-    "release:patch": "powershell -ExecutionPolicy Bypass -File ./scripts/release.ps1 -Type patch",
-    "release:minor": "powershell -ExecutionPolicy Bypass -File ./scripts/release.ps1 -Type minor",
-    "release:major": "powershell -ExecutionPolicy Bypass -File ./scripts/release.ps1 -Type major"
-  },
-  "keywords": [
-    "sig",
-    "gis",
-    "webgis",
-    "minahasa-selatan",
-    "maplibre",
-    "vue3",
-    "codeigniter4",
-    "mysql-spatial"
-  ],
-  "author": "Mitra Creative Environment OSS",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/mitracreativeenvironment-oss/sig_minsel.git"
-  },
-  "bugs": {
-    "url": "https://github.com/mitracreativeenvironment-oss/sig_minsel/issues"
-  },
-  "homepage": "https://github.com/mitracreativeenvironment-oss/sig_minsel#readme"
+﻿{
+    "name":  "sig_minsel",
+    "version":  "0.2.0",
+    "description":  "Sistem Informasi Geografis (SIG) Kabupaten Minahasa Selatan",
+    "private":  true,
+    "scripts":  {
+                    "release:patch":  "powershell -ExecutionPolicy Bypass -File ./scripts/release.ps1 -Type patch",
+                    "release:minor":  "powershell -ExecutionPolicy Bypass -File ./scripts/release.ps1 -Type minor",
+                    "release:major":  "powershell -ExecutionPolicy Bypass -File ./scripts/release.ps1 -Type major"
+                },
+    "keywords":  [
+                     "sig",
+                     "gis",
+                     "webgis",
+                     "minahasa-selatan",
+                     "maplibre",
+                     "vue3",
+                     "codeigniter4",
+                     "mysql-spatial"
+                 ],
+    "author":  "Mitra Creative Environment OSS",
+    "license":  "MIT",
+    "repository":  {
+                       "type":  "git",
+                       "url":  "git+https://github.com/mitracreativeenvironment-oss/sig_minsel.git"
+                   },
+    "bugs":  {
+                 "url":  "https://github.com/mitracreativeenvironment-oss/sig_minsel/issues"
+             },
+    "homepage":  "https://github.com/mitracreativeenvironment-oss/sig_minsel#readme"
 }
-
