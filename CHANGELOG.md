@@ -11,6 +11,14 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 
 ---
 
+## [0.5.3] - 2026-11-10
+
+### Keterangan Perubahan
+- Transformasi Landing Page menjadi Horizontal Scrollytelling interaktif dengan kontrol timeline horizontal dan 3D fly-through
+- feat(landing): transformasi landing page menjadi Horizontal Scrollytelling interaktif dengan integrasi GSAP dan Three.js (2a84cff)
+
+---
+
 ## [0.5.2] - 2026-11-10
 
 ### Keterangan Perubahan
@@ -85,6 +93,7 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 - Workflow otomasi CI/CD & GitHub Releases (`.github/workflows/release.yml`, `.github/workflows/ci.yml`).
 - Skema dasar basis data spasial (tabel batas administrasi kecamatan/desa dan objek tematik).
 - Konfigurasi `.gitignore` menyeluruh untuk CI4, Vue 3, GIS, dan cPanel.
+
 
 
 
