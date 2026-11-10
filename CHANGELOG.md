@@ -11,6 +11,14 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 
 ---
 
+## [0.5.7] - 2026-11-10
+
+### Keterangan Perubahan
+- 3D Kinetic Logo Assembler lambang Minahasa Selatan tersinkronisasi horizontal scrollytelling
+- feat(3d-logo): implementasi 3D Kinetic Logo Assembler lambang Minahasa Selatan tersinkronisasi horizontal scrollytelling (2a1fa8d)
+
+---
+
 ## [0.5.6] - 2026-11-10
 
 ### Keterangan Perubahan
@@ -117,6 +125,7 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 - Workflow otomasi CI/CD & GitHub Releases (`.github/workflows/release.yml`, `.github/workflows/ci.yml`).
 - Skema dasar basis data spasial (tabel batas administrasi kecamatan/desa dan objek tematik).
 - Konfigurasi `.gitignore` menyeluruh untuk CI4, Vue 3, GIS, dan cPanel.
+
 
 
 
