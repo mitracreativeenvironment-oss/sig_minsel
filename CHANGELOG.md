@@ -11,6 +11,14 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 
 ---
 
+## [0.5.8] - 2026-11-10
+
+### Keterangan Perubahan
+- 3D Kinetic Logo Assembler autentik berbasis lambang resmi Kabupaten Minahasa Selatan
+- feat(3d-logo): perakitan 3D autentik berbasis Lambang_Kabupaten_Minahasa_Selatan.png dengan segmentasi layer heraldik resmi (a509622)
+
+---
+
 ## [0.5.7] - 2026-11-10
 
 ### Keterangan Perubahan
@@ -125,6 +133,7 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 - Workflow otomasi CI/CD & GitHub Releases (`.github/workflows/release.yml`, `.github/workflows/ci.yml`).
 - Skema dasar basis data spasial (tabel batas administrasi kecamatan/desa dan objek tematik).
 - Konfigurasi `.gitignore` menyeluruh untuk CI4, Vue 3, GIS, dan cPanel.
+
 
 
 
