@@ -185,6 +185,7 @@ export interface DatasetItem {
   crs: string;
   submitted_by: string;
   updated_at: string;
+  deskripsi?: string;
   catatan_validasi?: string;
 }
 

@@ -155,4 +155,29 @@ body {
     max-height: 40vh;
   }
 }
+
+/* SweetAlert2 GeoMinsel Theme Customization */
+.geominsel-toast-popup {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.18), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+  border-left: 4px solid #0284c7 !important;
+  font-family: inherit !important;
+  padding: 12px 16px !important;
+}
+
+.geominsel-confirm-popup {
+  border-radius: 16px !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.15) !important;
+  font-family: inherit !important;
+  padding: 20px !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+.geominsel-confirm-title {
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+}
 </style>

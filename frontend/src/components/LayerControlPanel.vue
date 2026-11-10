@@ -1,8 +1,22 @@
 <script setup lang="ts">
+import { ref, computed } from 'vue';
 import { useLayerStore, type BasemapType } from '../stores/layerStore';
-import { Layers, Map as MapIcon, Hospital, Landmark, Trees, ShieldAlert, Check, Eye } from 'lucide-vue-next';
+import { notify } from '../services/alert';
+import {
+  Layers,
+  Map as MapIcon,
+  Hospital,
+  Landmark,
+  Trees,
+  ShieldAlert,
+  Check,
+  Eye,
+  Search,
+  X
+} from 'lucide-vue-next';
 
 const layerStore = useLayerStore();
+const layerSearchQuery = ref('');
 
 interface BasemapOption {
   id: BasemapType;
@@ -29,6 +43,36 @@ const thematicLayers = [
   { kode: 'pariwisata', label: 'Pariwisata & Budaya', icon: Trees, color: '#16a34a' },
   { kode: 'kebencanaan', label: 'Titik Rawan Bencana', icon: ShieldAlert, color: '#ea580c' },
 ];
+
+const filteredThematicLayers = computed(() => {
+  const q = layerSearchQuery.value.trim().toLowerCase();
+  if (!q) return thematicLayers;
+  return thematicLayers.filter((l) => l.label.toLowerCase().includes(q));
+});
+
+function handleBasemapSelect(b: BasemapOption) {
+  layerStore.setBasemap(b.id);
+  notify.info('Peta Dasar Dipilih', `Menggunakan layer acuan ${b.label} (${b.category})`);
+}
+
+function handleLayerToggle(layer: (typeof thematicLayers)[0]) {
+  layerStore.toggleLayer(layer.kode);
+  const isNowActive = layerStore.isLayerActive(layer.kode);
+  if (isNowActive) {
+    notify.success('Layer Aktif', `${layer.label} ditampilkan di peta interaktif.`);
+  } else {
+    notify.info('Layer Dinonaktifkan', `${layer.label} disembunyikan.`);
+  }
+}
+
+function handleFocusToggle() {
+  layerStore.toggleFocusMinsel();
+  if (layerStore.isFocusMinselActive) {
+    notify.info('Fokus Teritorial Aktif', 'Area di luar Minahasa Selatan diburamkan.');
+  } else {
+    notify.info('Fokus Teritorial Dinonaktifkan', 'Menampilkan peta penuh tanpa efek blur.');
+  }
+}
 </script>
 
 <template>
@@ -47,7 +91,7 @@ const thematicLayers = [
           <input
             type="checkbox"
             :checked="layerStore.isFocusMinselActive"
-            @change="layerStore.toggleFocusMinsel()"
+            @change="handleFocusToggle"
           />
           <span class="slider-sm"></span>
         </label>
@@ -65,7 +109,7 @@ const thematicLayers = [
           v-for="b in basemapOptions"
           :key="b.id"
           :class="['basemap-btn', { active: layerStore.activeBasemap === b.id }]"
-          @click="layerStore.setBasemap(b.id)"
+          @click="handleBasemapSelect(b)"
         >
           <div class="bm-info">
             <span class="btn-label">{{ b.label }}</span>
@@ -77,15 +121,37 @@ const thematicLayers = [
       </div>
     </div>
 
-    <!-- Thematic Layers -->
+    <!-- Thematic Layers with Real-time Search -->
     <div class="control-section">
-      <div class="section-title">
-        <Layers :size="16" class="icon-section" />
-        <span>Layer Data Tematik</span>
+      <div class="section-title-row">
+        <div class="section-title">
+          <Layers :size="16" class="icon-section" />
+          <span>Layer Data Tematik</span>
+        </div>
       </div>
+
+      <!-- Layer Search Box -->
+      <div class="layer-search-box">
+        <Search :size="14" class="ls-icon" />
+        <input
+          v-model="layerSearchQuery"
+          type="text"
+          placeholder="Cari layer tematik..."
+          class="ls-input"
+        />
+        <button
+          v-if="layerSearchQuery"
+          type="button"
+          class="ls-clear"
+          @click="layerSearchQuery = ''"
+        >
+          <X :size="12" />
+        </button>
+      </div>
+
       <div class="thematic-list">
         <label
-          v-for="layer in thematicLayers"
+          v-for="layer in filteredThematicLayers"
           :key="layer.kode"
           class="thematic-item"
         >
@@ -93,11 +159,15 @@ const thematicLayers = [
             type="checkbox"
             class="thematic-checkbox"
             :checked="layerStore.isLayerActive(layer.kode)"
-            @change="layerStore.toggleLayer(layer.kode)"
+            @change="handleLayerToggle(layer)"
           />
           <span class="color-badge" :style="{ backgroundColor: layer.color }"></span>
           <span class="layer-name">{{ layer.label }}</span>
         </label>
+
+        <div v-if="filteredThematicLayers.length === 0" class="ls-empty">
+          <span>Tidak ada layer yang cocok.</span>
+        </div>
       </div>
     </div>
   </div>
@@ -306,6 +376,65 @@ input:checked + .slider-sm:before {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* Layer Search Box */
+.layer-search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.ls-icon {
+  position: absolute;
+  left: 10px;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.ls-input {
+  width: 100%;
+  padding: 6px 30px 6px 32px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #1e293b;
+  outline: none;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+.ls-input:focus {
+  border-color: #0284c7;
+  background: #ffffff;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
+}
+
+.ls-clear {
+  position: absolute;
+  right: 8px;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+}
+
+.ls-clear:hover {
+  color: #0f172a;
+}
+
+.ls-empty {
+  padding: 12px;
+  text-align: center;
+  font-size: 11px;
+  color: #94a3b8;
+  font-style: italic;
 }
 
 .thematic-item {

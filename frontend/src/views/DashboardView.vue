@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { useAuthStore } from '../stores/authStore';
 import { sigApi } from '../services/api';
+import { notify, confirmDialog, promptNoteDialog } from '../services/alert';
 import type { RoleName, DatasetItem, DataDasarVersion, WorkflowState } from '../types';
 import {
   LayoutDashboard,
@@ -19,7 +20,12 @@ import {
   Layers,
   ArrowRight,
   ShieldAlert,
-  Send
+  Send,
+  Search,
+  LayoutGrid,
+  List,
+  X,
+  RotateCcw
 } from 'lucide-vue-next';
 
 const emit = defineEmits<{
@@ -36,7 +42,20 @@ const datasets = ref<DatasetItem[]>([]);
 const dataDasarList = ref<DataDasarVersion[]>([]);
 const workflowStates = ref<WorkflowState[]>([]);
 const isLoading = ref(false);
-const actionMessage = ref<string | null>(null);
+
+// View Mode State with LocalStorage Persistence
+const viewMode = ref<'grid' | 'list'>(
+  (localStorage.getItem('geominsel_view_mode') as 'grid' | 'list') || 'grid'
+);
+
+function setViewMode(mode: 'grid' | 'list') {
+  viewMode.value = mode;
+  localStorage.setItem('geominsel_view_mode', mode);
+  notify.info(
+    mode === 'grid' ? 'Tampilan Grid Aktif' : 'Tampilan Tabel (List) Aktif',
+    `Preferensi tampilan disimpan sebagai default.`
+  );
+}
 
 // Upload Form State for Superadmin SHP Boundary
 const uploadTipe = ref<'KABUPATEN' | 'KECAMATAN' | 'DESA'>('KECAMATAN');
@@ -46,15 +65,143 @@ const uploadFileName = ref('batas_17_kecamatan_minsel_2026.zip');
 const isUploading = ref(false);
 const lastValidationReport = ref<any>(null);
 
-// Filter State for Datasets
+// Search & Filter State for Datasets (Multi-Kriteria)
+const searchQuery = ref('');
 const filterStatus = ref('');
 const filterKecamatan = ref('');
+const filterGeometri = ref('');
+const filterOpd = ref('');
 
+// List of 17 Kecamatan in Minahasa Selatan
+const daftarKecamatan = [
+  'Amurang',
+  'Amurang Barat',
+  'Amurang Timur',
+  'Tumpaan',
+  'Tareran',
+  'Suluun Tareran',
+  'Modoinding',
+  'Tompaso Baru',
+  'Maesaan',
+  'Ranoyapo',
+  'Motoling',
+  'Motoling Barat',
+  'Motoling Timur',
+  'Kumelembuai',
+  'Sinonsayang',
+  'Tenga',
+  'Tatapaan'
+];
+
+// Computed unique OPDs from dataset list
+const uniqueOpds = computed(() => {
+  const set = new Set<string>();
+  datasets.value.forEach((d) => {
+    if (d.opd) set.add(d.opd);
+  });
+  return Array.from(set).sort();
+});
+
+// Computed unique Geometri from dataset list
+const uniqueGeometri = computed(() => {
+  const set = new Set<string>();
+  datasets.value.forEach((d) => {
+    if (d.tipe_geometri) set.add(d.tipe_geometri);
+  });
+  return Array.from(set).sort();
+});
+
+// Count active filters
+const activeFilterCount = computed(() => {
+  let count = 0;
+  if (searchQuery.value.trim()) count++;
+  if (filterStatus.value) count++;
+  if (filterKecamatan.value) count++;
+  if (filterGeometri.value) count++;
+  if (filterOpd.value) count++;
+  return count;
+});
+
+function resetFilters() {
+  searchQuery.value = '';
+  filterStatus.value = '';
+  filterKecamatan.value = '';
+  filterGeometri.value = '';
+  filterOpd.value = '';
+  notify.info('Filter Direset', 'Semua kriteria pencarian telah dikosongkan.');
+}
+
+// Multi-Criteria Filtered Datasets
 const filteredDatasets = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase();
   return datasets.value.filter((d) => {
+    const matchSearch =
+      !q ||
+      d.nama_dataset?.toLowerCase().includes(q) ||
+      d.kode_dataset?.toLowerCase().includes(q) ||
+      d.opd?.toLowerCase().includes(q) ||
+      d.kecamatan?.toLowerCase().includes(q) ||
+      d.nama_kategori?.toLowerCase().includes(q) ||
+      (d.deskripsi && d.deskripsi.toLowerCase().includes(q));
+
     const matchStatus = !filterStatus.value || d.status === filterStatus.value;
-    const matchKec = !filterKecamatan.value || d.kecamatan?.toLowerCase().includes(filterKecamatan.value.toLowerCase());
-    return matchStatus && matchKec;
+    const matchKec =
+      !filterKecamatan.value ||
+      d.kecamatan?.toLowerCase().includes(filterKecamatan.value.toLowerCase());
+    const matchGeom = !filterGeometri.value || d.tipe_geometri === filterGeometri.value;
+    const matchOpd = !filterOpd.value || d.opd === filterOpd.value;
+
+    return matchSearch && matchStatus && matchKec && matchGeom && matchOpd;
+  });
+});
+
+// Search & Filter for Validation Queue
+const searchValidationQuery = ref('');
+const filteredValidationDatasets = computed(() => {
+  const q = searchValidationQuery.value.trim().toLowerCase();
+  return datasets.value
+    .filter((item) => ['SUBMITTED_GIS', 'IN_VALIDATION_GIS'].includes(item.status))
+    .filter(
+      (d) =>
+        !q ||
+        d.nama_dataset?.toLowerCase().includes(q) ||
+        d.kode_dataset?.toLowerCase().includes(q) ||
+        d.opd?.toLowerCase().includes(q) ||
+        d.kecamatan?.toLowerCase().includes(q)
+    );
+});
+
+// Search & Filter for Approval Queue
+const searchApprovalQuery = ref('');
+const filteredApprovalDatasets = computed(() => {
+  const q = searchApprovalQuery.value.trim().toLowerCase();
+  return datasets.value
+    .filter((item) =>
+      ['APPROVED_GIS', 'SUBMITTED_APPROVAL', 'IN_APPROVAL'].includes(item.status)
+    )
+    .filter(
+      (d) =>
+        !q ||
+        d.nama_dataset?.toLowerCase().includes(q) ||
+        d.kode_dataset?.toLowerCase().includes(q) ||
+        d.opd?.toLowerCase().includes(q) ||
+        d.kecamatan?.toLowerCase().includes(q)
+    );
+});
+
+// Search & Filter for Users & OPD
+const searchUserQuery = ref('');
+const filterUserRole = ref('');
+const filteredUsers = computed(() => {
+  const q = searchUserQuery.value.trim().toLowerCase();
+  return authStore.roles.filter((r) => {
+    const matchSearch =
+      !q ||
+      r.label.toLowerCase().includes(q) ||
+      r.name.toLowerCase().includes(q) ||
+      r.opd.toLowerCase().includes(q);
+    const matchRole = !filterUserRole.value || r.name === filterUserRole.value;
+    return matchSearch && matchRole;
   });
 });
 
@@ -83,28 +230,92 @@ async function loadDashboardData() {
   }
 }
 
-async function handleTransition(datasetId: number, targetStatus: string, defaultNote: string) {
+// SweetAlert2 Interactive Workflow Transition with Top-Right Confirm
+async function handleTransitionWithConfirm(
+  dataset: DatasetItem,
+  targetStatus: string,
+  actionName: string,
+  defaultNote: string,
+  isDangerous = false
+) {
+  const confirmed = await confirmDialog({
+    title: `${actionName}?`,
+    text: `Konfirmasi pengalihan status dataset "${dataset.nama_dataset}" (${dataset.kode_dataset}) ke ${targetStatus}.`,
+    confirmButtonText: `Ya, ${actionName}`,
+    isDangerous: isDangerous,
+    icon: isDangerous ? 'warning' : 'question'
+  });
+
+  if (!confirmed) return;
+
   try {
     const res = await sigApi.transitionWorkflow({
-      dataset_id: datasetId,
+      dataset_id: dataset.id,
       status: targetStatus,
       catatan: defaultNote,
       actor_role: authStore.currentRole
     });
-    actionMessage.value = res.message;
-    // Update local state
-    const target = datasets.value.find((d) => d.id === datasetId);
+
+    // Update local dataset state
+    const target = datasets.value.find((d) => d.id === dataset.id);
     if (target) {
       target.status = targetStatus as any;
       target.catatan_validasi = defaultNote;
     }
-    setTimeout(() => (actionMessage.value = null), 4000);
+
+    notify.success(`${actionName} Berhasil`, res.message || `Status kini: ${targetStatus}`);
   } catch (e: any) {
-    alert('Gagal memperbarui status: ' + e.message);
+    notify.error(`Gagal ${actionName}`, e.message || 'Terjadi kesalahan sistem');
   }
 }
 
-async function handleUploadShp() {
+// SweetAlert2 Prompt Note for Revision / Rejection
+async function handleRejectWithPrompt(
+  dataset: DatasetItem,
+  targetStatus: 'REJECTED_GIS' | 'DRAFT',
+  actionTitle: string
+) {
+  const note = await promptNoteDialog({
+    title: actionTitle,
+    text: `Tuliskan catatan teknis atau alasan kebijakan untuk dataset "${dataset.nama_dataset}":`,
+    inputPlaceholder: 'Tuliskan catatan revisi/alasan di sini...',
+    confirmButtonText: 'Kirim Catatan',
+    required: true
+  });
+
+  if (note === null) return; // Dibatalkan oleh user
+
+  try {
+    const res = await sigApi.transitionWorkflow({
+      dataset_id: dataset.id,
+      status: targetStatus,
+      catatan: note,
+      actor_role: authStore.currentRole
+    });
+
+    const target = datasets.value.find((d) => d.id === dataset.id);
+    if (target) {
+      target.status = targetStatus as any;
+      target.catatan_validasi = note;
+    }
+
+    notify.warning('Catatan Dikirim', res.message || `Dataset dialihkan dengan catatan revisi.`);
+  } catch (e: any) {
+    notify.error('Gagal Mengirim Catatan', e.message || 'Terjadi kesalahan sistem');
+  }
+}
+
+// SweetAlert2 Interactive Upload SHP
+async function handleUploadShpWithConfirm() {
+  const confirmed = await confirmDialog({
+    title: 'Validasi & Unggah Paket SHP?',
+    text: `Paket data dasar "${uploadFileName.value}" (${uploadTipe.value} - ${uploadTahun.value}) akan diverifikasi topologinya dan disimpan ke sistem.`,
+    confirmButtonText: 'Upload & Validasi',
+    icon: 'info'
+  });
+
+  if (!confirmed) return;
+
   isUploading.value = true;
   try {
     const res = await sigApi.uploadDataDasar({
@@ -115,36 +326,49 @@ async function handleUploadShp() {
     });
     lastValidationReport.value = res.data.validation_report;
     dataDasarList.value.push(res.data.version_record);
-    actionMessage.value = res.message;
-    setTimeout(() => (actionMessage.value = null), 5000);
+    notify.success('Upload SHP Berhasil', res.message || 'Paket SHP tervalidasi EPSG:4326.');
   } catch (e: any) {
-    alert('Gagal upload SHP: ' + e.message);
+    notify.error('Gagal Upload SHP', e.message || 'Verifikasi paket SHP gagal');
   } finally {
     isUploading.value = false;
   }
 }
 
-async function handleActivateDataDasar(id: number) {
+// SweetAlert2 Interactive Activate Data Dasar
+async function handleActivateDataDasarWithConfirm(item: DataDasarVersion) {
+  const confirmed = await confirmDialog({
+    title: 'Tetapkan Sebagai Rujukan Aktif?',
+    text: `Versi "${item.versi}" (${item.label_tipe} - Tahun ${item.tahun_referensi}) akan dijadikan acuan batas resmi aktif untuk seluruh OPD.`,
+    confirmButtonText: 'Aktifkan Rujukan',
+    icon: 'warning',
+    isDangerous: true
+  });
+
+  if (!confirmed) return;
+
   try {
-    const res = await sigApi.activateDataDasar(id);
+    const res = await sigApi.activateDataDasar(item.id);
     dataDasarList.value.forEach((v) => {
       if (v.tipe_data === res.data.tipe_data) {
-        v.status = v.id === id ? 'AKTIF' : 'DIGANTIKAN';
+        v.status = v.id === item.id ? 'AKTIF' : 'DIGANTIKAN';
       }
     });
-    actionMessage.value = res.message;
-    setTimeout(() => (actionMessage.value = null), 4000);
+    notify.success('Rujukan Diaktifkan', res.message || 'Data dasar wilayah berhasil ditetapkan.');
   } catch (e: any) {
-    alert('Gagal aktivasi data dasar: ' + e.message);
+    notify.error('Gagal Aktivasi Batas', e.message || 'Terjadi kesalahan sistem');
   }
 }
 
 function switchRole(role: RoleName) {
   authStore.quickSwitch(role);
-  // Auto switch tab if current tab is restricted
   if (role !== 'superadmin' && activeTab.value === 'data_dasar') {
     activeTab.value = 'overview';
   }
+  const roleObj = authStore.roles.find((r) => r.name === role);
+  notify.info(
+    'Peran Pengguna Berubah',
+    `Kini bertindak sebagai: ${roleObj?.label || role} (${roleObj?.opd || 'Kab. Minahasa Selatan'})`
+  );
 }
 
 onMounted(() => {
@@ -300,12 +524,6 @@ onMounted(() => {
 
       <!-- Main Content Stage -->
       <section class="dash-stage">
-        <!-- Floating Flash Banner for Action Feedback -->
-        <div v-if="actionMessage" class="action-alert">
-          <CheckCircle2 :size="18" />
-          <span>{{ actionMessage }}</span>
-        </div>
-
         <!-- ============================================================== -->
         <!-- TAB 1: OVERVIEW (RINGKASAN EKSEKUTIF)                          -->
         <!-- ============================================================== -->
@@ -410,7 +628,7 @@ onMounted(() => {
         </div>
 
         <!-- ============================================================== -->
-        <!-- TAB 2: DATASET SEKTOARL & KANBAN                               -->
+        <!-- TAB 2: DATASET SEKTOARL (GRID & LIST + MULTI-FILTER)           -->
         <!-- ============================================================== -->
         <div v-if="activeTab === 'datasets'" class="tab-content">
           <div class="content-header">
@@ -419,32 +637,208 @@ onMounted(() => {
               <p class="content-sub">Pengelolaan objek spasial per OPD dengan keterikatan hierarki 17 Kecamatan</p>
             </div>
 
-            <!-- Filters -->
-            <div class="filter-strip">
-              <input
-                v-model="filterKecamatan"
-                type="text"
-                placeholder="Cari kecamatan..."
-                class="filter-input"
-              />
-              <select v-model="filterStatus" class="filter-select">
-                <option value="">Semua Status (12 Tahap)</option>
-                <option value="DRAFT">DRAFT</option>
-                <option value="IN_VALIDATION_GIS">IN_VALIDATION_GIS</option>
-                <option value="APPROVED_GIS">APPROVED_GIS</option>
-                <option value="IN_APPROVAL">IN_APPROVAL</option>
-                <option value="PUBLISHED">PUBLISHED</option>
-              </select>
+            <!-- Controls: Search, Filters, and View Switcher -->
+            <div class="header-controls-cluster">
+              <!-- View Mode Switcher -->
+              <div class="view-mode-toggle" role="group" aria-label="Pilihan Tampilan">
+                <button
+                  type="button"
+                  class="toggle-btn"
+                  :class="{ active: viewMode === 'grid' }"
+                  @click="setViewMode('grid')"
+                  title="Tampilan Grid (Bento Cards)"
+                >
+                  <LayoutGrid :size="15" />
+                  <span>Grid</span>
+                </button>
+                <button
+                  type="button"
+                  class="toggle-btn"
+                  :class="{ active: viewMode === 'list' }"
+                  @click="setViewMode('list')"
+                  title="Tampilan Tabel Rinci (List)"
+                >
+                  <List :size="15" />
+                  <span>List</span>
+                </button>
+              </div>
             </div>
           </div>
 
-          <div class="table-card">
+          <!-- Multi-Criteria Filter & Search Toolbar -->
+          <div class="filter-toolbar-card">
+            <div class="toolbar-top-row">
+              <!-- Search Input -->
+              <div class="search-input-wrap">
+                <Search :size="16" class="search-icon" />
+                <input
+                  v-model="searchQuery"
+                  type="text"
+                  placeholder="Cari nama dataset, kode, OPD, kecamatan, atau kategori..."
+                  class="search-input-field"
+                />
+                <button
+                  v-if="searchQuery"
+                  type="button"
+                  class="clear-search-btn"
+                  @click="searchQuery = ''"
+                  title="Hapus pencarian"
+                >
+                  <X :size="14" />
+                </button>
+              </div>
+
+              <!-- Reset Filter Button -->
+              <button
+                v-if="activeFilterCount > 0"
+                type="button"
+                class="btn-reset-filters"
+                @click="resetFilters"
+                title="Kembalikan semua filter ke awal"
+              >
+                <RotateCcw :size="13" />
+                <span>Reset Filter ({{ activeFilterCount }})</span>
+              </button>
+            </div>
+
+            <div class="toolbar-filters-row">
+              <div class="filter-group">
+                <label class="filter-label">Status Alur:</label>
+                <select v-model="filterStatus" class="filter-select-enhanced">
+                  <option value="">Semua Status ({{ datasets.length }})</option>
+                  <option value="DRAFT">DRAFT</option>
+                  <option value="SUBMITTED_GIS">SUBMITTED_GIS</option>
+                  <option value="IN_VALIDATION_GIS">IN_VALIDATION_GIS</option>
+                  <option value="APPROVED_GIS">APPROVED_GIS</option>
+                  <option value="SUBMITTED_APPROVAL">SUBMITTED_APPROVAL</option>
+                  <option value="IN_APPROVAL">IN_APPROVAL</option>
+                  <option value="APPROVED">APPROVED</option>
+                  <option value="PUBLISHED">PUBLISHED</option>
+                  <option value="REJECTED_GIS">REJECTED_GIS</option>
+                </select>
+              </div>
+
+              <div class="filter-group">
+                <label class="filter-label">Kecamatan:</label>
+                <select v-model="filterKecamatan" class="filter-select-enhanced">
+                  <option value="">Semua Kecamatan (17)</option>
+                  <option v-for="kec in daftarKecamatan" :key="kec" :value="kec">
+                    {{ kec }}
+                  </option>
+                </select>
+              </div>
+
+              <div class="filter-group">
+                <label class="filter-label">Geometri:</label>
+                <select v-model="filterGeometri" class="filter-select-enhanced">
+                  <option value="">Semua Geometri</option>
+                  <option v-for="g in uniqueGeometri" :key="g" :value="g">
+                    {{ g }}
+                  </option>
+                </select>
+              </div>
+
+              <div class="filter-group">
+                <label class="filter-label">OPD Produsen:</label>
+                <select v-model="filterOpd" class="filter-select-enhanced">
+                  <option value="">Semua OPD</option>
+                  <option v-for="opd in uniqueOpds" :key="opd" :value="opd">
+                    {{ opd }}
+                  </option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Empty State (No Search Match) -->
+          <div v-if="filteredDatasets.length === 0" class="empty-state-card">
+            <Search :size="40" class="empty-icon" />
+            <h3 class="empty-title">Tidak Ada Dataset yang Cocok</h3>
+            <p class="empty-desc">
+              Tidak ditemukan data spasial yang memenuhi kriteria pencarian dan filter aktif.
+            </p>
+            <button type="button" class="btn-empty-reset" @click="resetFilters">
+              <RotateCcw :size="14" />
+              <span>Bersihkan Filter &amp; Pencarian</span>
+            </button>
+          </div>
+
+          <!-- TAMPILAN 1: GRID MODE (BENTO CARDS) -->
+          <div v-else-if="viewMode === 'grid'" class="dataset-grid">
+            <div
+              v-for="d in filteredDatasets"
+              :key="d.id"
+              class="dataset-bento-card"
+            >
+              <div class="bento-header">
+                <span class="badge-opd">{{ d.opd }}</span>
+                <span class="status-pill" :class="'st-' + d.status.toLowerCase()">
+                  {{ d.status }}
+                </span>
+              </div>
+
+              <div class="bento-body">
+                <span class="bento-code">{{ d.kode_dataset }}</span>
+                <h3 class="bento-title">{{ d.nama_dataset }}</h3>
+                <p v-if="d.deskripsi" class="bento-desc">{{ d.deskripsi }}</p>
+              </div>
+
+              <div class="bento-meta-chips">
+                <span class="chip chip-geom">
+                  <Layers :size="12" />
+                  <span>{{ d.tipe_geometri }}</span>
+                </span>
+                <span class="chip chip-features">
+                  <span>{{ d.jumlah_fitur }} fitur</span>
+                </span>
+                <span class="chip chip-kec">
+                  <MapPin :size="12" />
+                  <span>{{ d.kecamatan || 'Kabupaten' }}</span>
+                </span>
+                <span class="chip chip-crs">
+                  <span>{{ d.crs || 'EPSG:4326' }}</span>
+                </span>
+              </div>
+
+              <div class="bento-footer">
+                <span class="bento-cat-label">{{ d.nama_kategori }}</span>
+
+                <div class="action-btn-group">
+                  <button
+                    v-if="['superadmin', 'operator_opd', 'admin_opd'].includes(authStore.currentRole) && d.status === 'DRAFT'"
+                    class="btn-act btn-submit"
+                    @click="handleTransitionWithConfirm(d, 'IN_VALIDATION_GIS', 'Ajukan Validasi', 'Diajukan ke validasi teknis GIS')"
+                  >
+                    <Send :size="13" />
+                    <span>Ajukan Validasi</span>
+                  </button>
+
+                  <button
+                    v-if="['superadmin', 'admin_gis'].includes(authStore.currentRole) && d.status === 'APPROVED'"
+                    class="btn-act btn-publish"
+                    @click="handleTransitionWithConfirm(d, 'PUBLISHED', 'Publikasikan ke Geoportal', 'Diterbitkan ke katalog publik geoportal')"
+                  >
+                    <Layers :size="13" />
+                    <span>Publikasikan</span>
+                  </button>
+
+                  <span v-if="d.status === 'PUBLISHED'" class="text-published">
+                    <CheckCircle2 :size="14" />
+                    <span>Tayang Aktif</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAMPILAN 2: LIST MODE (DETAILED TABLE) -->
+          <div v-else class="table-card">
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Kode & Nama Dataset</th>
+                  <th>Kode &amp; Nama Dataset</th>
                   <th>OPD Penanggung Jawab</th>
-                  <th>Kategori & Geometri</th>
+                  <th>Kategori &amp; Geometri</th>
                   <th>Cakupan Wilayah</th>
                   <th>Status Workflow</th>
                   <th>Tindakan Otoritas</th>
@@ -480,7 +874,7 @@ onMounted(() => {
                       <button
                         v-if="['superadmin', 'operator_opd', 'admin_opd'].includes(authStore.currentRole) && d.status === 'DRAFT'"
                         class="btn-act btn-submit"
-                        @click="handleTransition(d.id, 'IN_VALIDATION_GIS', 'Diajukan ke validasi teknis GIS')"
+                        @click="handleTransitionWithConfirm(d, 'IN_VALIDATION_GIS', 'Ajukan Validasi', 'Diajukan ke validasi teknis GIS')"
                       >
                         <Send :size="13" />
                         <span>Ajukan Validasi</span>
@@ -489,7 +883,7 @@ onMounted(() => {
                       <button
                         v-if="['superadmin', 'admin_gis'].includes(authStore.currentRole) && d.status === 'APPROVED'"
                         class="btn-act btn-publish"
-                        @click="handleTransition(d.id, 'PUBLISHED', 'Diterbitkan ke katalog publik geoportal')"
+                        @click="handleTransitionWithConfirm(d, 'PUBLISHED', 'Publikasikan ke Geoportal', 'Diterbitkan ke katalog publik geoportal')"
                       >
                         <Layers :size="13" />
                         <span>Publikasikan</span>
@@ -508,7 +902,7 @@ onMounted(() => {
         </div>
 
         <!-- ============================================================== -->
-        <!-- TAB 3: ANTREAN VALIDASI TEKNIS GIS                            -->
+        <!-- TAB 3: ANTREAN VALIDASI TEKNIS GIS (WITH SEARCH & SWEETALERT)  -->
         <!-- ============================================================== -->
         <div v-if="activeTab === 'validation'" class="tab-content">
           <div class="content-header">
@@ -516,11 +910,36 @@ onMounted(() => {
               <h2 class="content-title">Antrean Validasi Teknis Geospasial</h2>
               <p class="content-sub">Pemeriksaan topologi, bebas tumpang-tindih (no overlap), sistem koordinat EPSG:4326, dan kelengkapan atribut</p>
             </div>
+
+            <!-- Validation Search -->
+            <div class="search-input-wrap search-sm">
+              <Search :size="15" class="search-icon" />
+              <input
+                v-model="searchValidationQuery"
+                type="text"
+                placeholder="Cari antrean validasi..."
+                class="search-input-field"
+              />
+              <button
+                v-if="searchValidationQuery"
+                type="button"
+                class="clear-search-btn"
+                @click="searchValidationQuery = ''"
+              >
+                <X :size="13" />
+              </button>
+            </div>
           </div>
 
-          <div class="cards-queue">
+          <div v-if="filteredValidationDatasets.length === 0" class="empty-state-card">
+            <CheckCheck :size="40" class="empty-icon text-emerald" />
+            <h3 class="empty-title">Tidak Ada Antrean Validasi</h3>
+            <p class="empty-desc">Seluruh pengajuan dataset spasial telah tervalidasi atau tidak ada data yang cocok.</p>
+          </div>
+
+          <div v-else class="cards-queue">
             <div
-              v-for="d in datasets.filter(item => ['SUBMITTED_GIS', 'IN_VALIDATION_GIS'].includes(item.status))"
+              v-for="d in filteredValidationDatasets"
               :key="d.id"
               class="validation-card"
             >
@@ -550,14 +969,14 @@ onMounted(() => {
               <div class="vc-footer">
                 <button
                   class="btn-act btn-reject"
-                  @click="handleTransition(d.id, 'REJECTED_GIS', 'Perlu perbaikan atribut tabel OPD')"
+                  @click="handleRejectWithPrompt(d, 'REJECTED_GIS', 'Minta Catatan Revisi OPD')"
                 >
                   <AlertTriangle :size="14" />
                   <span>Minta Revisi OPD</span>
                 </button>
                 <button
                   class="btn-act btn-approve"
-                  @click="handleTransition(d.id, 'APPROVED_GIS', 'Lolos verifikasi teknis geometri & CRS')"
+                  @click="handleTransitionWithConfirm(d, 'APPROVED_GIS', 'Loloskan Validasi Teknis', 'Lolos verifikasi teknis geometri & CRS EPSG:4326')"
                 >
                   <CheckCircle2 :size="14" />
                   <span>Lolos Validasi Teknis</span>
@@ -568,7 +987,7 @@ onMounted(() => {
         </div>
 
         <!-- ============================================================== -->
-        <!-- TAB 4: PERSETUJUAN TERPUSAT WALIDATA (BAPPELITBANGDA)          -->
+        <!-- TAB 4: PERSETUJUAN TERPUSAT WALIDATA (WITH SEARCH & ALERT)     -->
         <!-- ============================================================== -->
         <div v-if="activeTab === 'approval'" class="tab-content">
           <div class="content-header">
@@ -576,11 +995,36 @@ onMounted(() => {
               <h2 class="content-title">Antrean Persetujuan Terpusat (Central Approval)</h2>
               <p class="content-sub">Kewenangan Walidata Bappelitbangda sebelum dataset diterbitkan resmi ke publik</p>
             </div>
+
+            <!-- Approval Search -->
+            <div class="search-input-wrap search-sm">
+              <Search :size="15" class="search-icon" />
+              <input
+                v-model="searchApprovalQuery"
+                type="text"
+                placeholder="Cari dataset pengajuan..."
+                class="search-input-field"
+              />
+              <button
+                v-if="searchApprovalQuery"
+                type="button"
+                class="clear-search-btn"
+                @click="searchApprovalQuery = ''"
+              >
+                <X :size="13" />
+              </button>
+            </div>
           </div>
 
-          <div class="cards-queue">
+          <div v-if="filteredApprovalDatasets.length === 0" class="empty-state-card">
+            <FileCheck2 :size="40" class="empty-icon text-blue" />
+            <h3 class="empty-title">Tidak Ada Antrean Persetujuan</h3>
+            <p class="empty-desc">Semua pengajuan dataset telah disetujui Walidata Bappelitbangda atau belum ada antrean baru.</p>
+          </div>
+
+          <div v-else class="cards-queue">
             <div
-              v-for="d in datasets.filter(item => ['APPROVED_GIS', 'SUBMITTED_APPROVAL', 'IN_APPROVAL'].includes(item.status))"
+              v-for="d in filteredApprovalDatasets"
               :key="d.id"
               class="approval-card"
             >
@@ -598,13 +1042,14 @@ onMounted(() => {
               <div class="ac-actions">
                 <button
                   class="btn-act btn-reject"
-                  @click="handleTransition(d.id, 'DRAFT', 'Ditolak: Tidak sesuai prioritas Satu Data Daerah 2026')"
+                  @click="handleRejectWithPrompt(d, 'DRAFT', 'Tolak Pengajuan Dataset')"
                 >
+                  <AlertTriangle :size="14" />
                   <span>Tolak Pengajuan</span>
                 </button>
                 <button
                   class="btn-act btn-approve"
-                  @click="handleTransition(d.id, 'APPROVED', 'Disetujui Walidata Bappelitbangda No: 045/SDI-MINSEL/2026')"
+                  @click="handleTransitionWithConfirm(d, 'APPROVED', 'Beri Persetujuan Walidata', 'Disetujui Walidata Bappelitbangda No: 045/SDI-MINSEL/2026')"
                 >
                   <CheckCircle2 :size="14" />
                   <span>Beri Persetujuan Terpusat</span>
@@ -633,7 +1078,7 @@ onMounted(() => {
               sistem proyeksi menggunakan <strong>EPSG:4326 (WGS84)</strong>.
             </p>
 
-            <form class="upload-form-grid" @submit.prevent="handleUploadShp">
+            <form class="upload-form-grid" @submit.prevent="handleUploadShpWithConfirm">
               <div class="form-cell">
                 <label class="form-lbl">Tingkatan Batas Administrasi</label>
                 <select v-model="uploadTipe" class="form-input-box">
@@ -694,9 +1139,9 @@ onMounted(() => {
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Tipe Batas & Versi</th>
-                  <th>Berkas ZIP & Sumber</th>
-                  <th>CRS & Fitur</th>
+                  <th>Tipe Batas &amp; Versi</th>
+                  <th>Berkas ZIP &amp; Sumber</th>
+                  <th>CRS &amp; Fitur</th>
                   <th>Status Acuan</th>
                   <th>Aksi</th>
                 </tr>
@@ -730,7 +1175,7 @@ onMounted(() => {
                     <button
                       v-if="v.status !== 'AKTIF'"
                       class="btn-act btn-approve"
-                      @click="handleActivateDataDasar(v.id)"
+                      @click="handleActivateDataDasarWithConfirm(v)"
                     >
                       <span>Aktifkan Acuan</span>
                     </button>
@@ -746,13 +1191,41 @@ onMounted(() => {
         </div>
 
         <!-- ============================================================== -->
-        <!-- TAB 6: USERS & OPD                                             -->
+        <!-- TAB 6: USERS & OPD (WITH SEARCH & ROLE FILTER)                 -->
         <!-- ============================================================== -->
         <div v-if="activeTab === 'users'" class="tab-content">
           <div class="content-header">
             <div>
-              <h2 class="content-title">Manajemen Akun Pengguna & OPD</h2>
+              <h2 class="content-title">Manajemen Akun Pengguna &amp; OPD</h2>
               <p class="content-sub">Penerapan pemisahan wewenang 8 Role dan pembatasan akses data sektoral</p>
+            </div>
+
+            <!-- User Search & Role Filter -->
+            <div class="header-controls-cluster">
+              <div class="search-input-wrap search-sm">
+                <Search :size="15" class="search-icon" />
+                <input
+                  v-model="searchUserQuery"
+                  type="text"
+                  placeholder="Cari nama, role, atau OPD..."
+                  class="search-input-field"
+                />
+                <button
+                  v-if="searchUserQuery"
+                  type="button"
+                  class="clear-search-btn"
+                  @click="searchUserQuery = ''"
+                >
+                  <X :size="13" />
+                </button>
+              </div>
+
+              <select v-model="filterUserRole" class="filter-select-enhanced">
+                <option value="">Semua Peran (8 Role)</option>
+                <option v-for="r in authStore.roles" :key="r.name" :value="r.name">
+                  {{ r.label }}
+                </option>
+              </select>
             </div>
           </div>
 
@@ -760,16 +1233,19 @@ onMounted(() => {
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Nama Pengguna</th>
-                  <th>Role Resmi</th>
+                  <th>Nama Pengguna &amp; Peran</th>
+                  <th>Role Teknis</th>
                   <th>Organisasi Perangkat Daerah (OPD)</th>
                   <th>Status Akses</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="r in authStore.roles" :key="r.id">
+                <tr v-for="r in filteredUsers" :key="r.id">
                   <td>
-                    <span class="cell-title">{{ r.label }} Kab. Minahasa Selatan</span>
+                    <div class="cell-main">
+                      <span class="cell-title">{{ r.label }}</span>
+                      <span class="cell-meta">ID Pengguna: #{{ r.id }} &bull; Kab. Minahasa Selatan</span>
+                    </div>
                   </td>
                   <td>
                     <span class="badge-role">{{ r.name }}</span>
@@ -1674,19 +2150,373 @@ onMounted(() => {
   font-weight: 700;
 }
 
-.filter-strip {
+/* HEADER CONTROLS & VIEW TOGGLE */
+.header-controls-cluster {
   display: flex;
   align-items: center;
+  gap: 12px;
+}
+
+.view-mode-toggle {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toggle-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.toggle-btn.active {
+  background: #0284c7;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* FILTER & SEARCH TOOLBAR */
+.filter-toolbar-card {
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.toolbar-top-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.search-input-wrap.search-sm {
+  width: 280px;
+  flex: none;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  color: #64748b;
+  pointer-events: none;
+}
+
+.search-input-field {
+  width: 100%;
+  padding: 9px 36px 9px 38px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 13px;
+  outline: none;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+.search-input-field:focus {
+  border-color: #38bdf8;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+.clear-search-btn {
+  position: absolute;
+  right: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  cursor: pointer;
+}
+
+.clear-search-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.btn-reset-filters {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.btn-reset-filters:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+}
+
+.toolbar-filters-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.filter-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.filter-select-enhanced {
+  width: 100%;
+  padding: 8px 12px;
+  background: #0b132b;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: #f1f5f9;
+  font-size: 12px;
+  font-weight: 500;
+  outline: none;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.filter-select-enhanced:focus {
+  border-color: #38bdf8;
+}
+
+.filter-select-enhanced option {
+  background: #0f172a;
+  color: #f8fafc;
+}
+
+/* EMPTY STATE */
+.empty-state-card {
+  background: #0f172a;
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  padding: 48px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 8px;
+}
+
+.empty-icon {
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.empty-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+
+.empty-desc {
+  font-size: 13px;
+  color: #94a3b8;
+  max-width: 440px;
+  margin: 0 0 12px 0;
+}
+
+.btn-empty-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #0284c7;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-empty-reset:hover {
+  background: #0369a1;
+}
+
+/* GRID MODE (BENTO CARDS) */
+.dataset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 18px;
+}
+
+.dataset-bento-card {
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+}
+
+.dataset-bento-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(56, 189, 248, 0.3);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+}
+
+.bento-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bento-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bento-code {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #64748b;
+  letter-spacing: 0.5px;
+}
+
+.bento-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.bento-desc {
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.4;
+  margin: 4px 0 0 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.bento-meta-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+}
+
+.chip-geom {
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.2);
+}
+
+.chip-features {
+  color: #a78bfa;
+}
+
+.chip-kec {
+  color: #34d399;
+}
+
+.chip-crs {
+  font-family: 'JetBrains Mono', monospace;
+  color: #94a3b8;
+}
+
+.bento-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   gap: 10px;
 }
 
-.filter-input, .filter-select {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
-  padding: 6px 10px;
-  color: #ffffff;
-  font-size: 12px;
-  outline: none;
+.bento-cat-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #f59e0b;
+}
+
+@media (max-width: 1024px) {
+  .toolbar-filters-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .toolbar-filters-row {
+    grid-template-columns: 1fr;
+  }
+  .toolbar-top-row {
+    flex-direction: column;
+  }
+  .search-input-wrap.search-sm {
+    width: 100%;
+  }
 }
 </style>
