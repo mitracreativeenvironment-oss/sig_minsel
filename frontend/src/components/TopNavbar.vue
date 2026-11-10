@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { useWilayahStore } from '../stores/wilayahStore';
 import { useAuthStore } from '../stores/authStore';
-import { ShieldCheck, Compass, LayoutDashboard, Globe } from 'lucide-vue-next';
+import { ShieldCheck, Compass, LayoutDashboard } from 'lucide-vue-next';
 
 const emit = defineEmits<{
-  (e: 'navigate', view: 'landing' | 'geoportal' | 'dashboard'): void;
+  (e: 'navigate', view: 'geoportal' | 'dashboard'): void;
   (e: 'open-login'): void;
 }>();
 
@@ -14,7 +14,7 @@ const authStore = useAuthStore();
 
 <template>
   <header class="top-nav">
-    <div class="nav-brand" @click="emit('navigate', 'landing')">
+    <div class="nav-brand" @click="emit('navigate', 'geoportal')">
       <div class="brand-icon">
         <img src="/favicon.svg" alt="Logo Minahasa Selatan" width="28" height="28" />
       </div>
@@ -26,10 +26,6 @@ const authStore = useAuthStore();
 
     <!-- Navigation Tab Buttons -->
     <div class="nav-middle">
-      <button class="nav-tab-btn" @click="emit('navigate', 'landing')">
-        <Globe :size="15" />
-        <span>Halaman Utama</span>
-      </button>
       <button class="nav-tab-btn active" @click="emit('navigate', 'geoportal')">
         <Compass :size="15" />
         <span>Peta Interaktif</span>

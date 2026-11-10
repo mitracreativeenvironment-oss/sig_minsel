@@ -5,15 +5,14 @@ import MapContainer from './components/MapContainer.vue';
 import CascadingWilayahFilter from './components/CascadingWilayahFilter.vue';
 import LayerControlPanel from './components/LayerControlPanel.vue';
 import UserLocationBar from './components/UserLocationBar.vue';
-import LandingPage from './views/LandingPage.vue';
 import DashboardView from './views/DashboardView.vue';
 import AuthModal from './components/AuthModal.vue';
 import { useWilayahStore } from './stores/wilayahStore';
 import { useLayerStore } from './stores/layerStore';
 import { useAuthStore } from './stores/authStore';
 
-type ActiveView = 'landing' | 'geoportal' | 'dashboard';
-const currentView = ref<ActiveView>('landing');
+type ActiveView = 'geoportal' | 'dashboard';
+const currentView = ref<ActiveView>('geoportal');
 const showAuthModal = ref(false);
 
 const wilayahStore = useWilayahStore();
@@ -43,15 +42,8 @@ onMounted(async () => {
 
 <template>
   <div class="gis-app">
-    <!-- VIEW 1: LANDING PAGE 1 HALAMAN FULL DENGAN THREE.JS SCROLLYTELLING -->
-    <LandingPage
-      v-if="currentView === 'landing'"
-      @navigate="handleNavigate"
-      @open-login="showAuthModal = true"
-    />
-
-    <!-- VIEW 2: GEOPORTAL PETA INTERAKTIF MAPLIBRE -->
-    <div v-else-if="currentView === 'geoportal'" class="geoportal-layout">
+    <!-- VIEW 1: GEOPORTAL PETA INTERAKTIF MAPLIBRE (UTAMA) -->
+    <div v-if="currentView === 'geoportal'" class="geoportal-layout">
       <TopNavbar
         @navigate="handleNavigate"
         @open-login="showAuthModal = true"
@@ -74,7 +66,7 @@ onMounted(async () => {
       </main>
     </div>
 
-    <!-- VIEW 3: DASHBOARD TATA KELOLA SPASIAL 8 ROLE -->
+    <!-- VIEW 2: DASHBOARD TATA KELOLA SPASIAL 8 ROLE -->
     <DashboardView
       v-else-if="currentView === 'dashboard'"
       @navigate="handleNavigate"

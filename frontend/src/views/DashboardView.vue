@@ -23,7 +23,7 @@ import {
 } from 'lucide-vue-next';
 
 const emit = defineEmits<{
-  (e: 'navigate', view: 'geoportal' | 'landing' | 'dashboard'): void;
+  (e: 'navigate', view: 'geoportal' | 'dashboard'): void;
 }>();
 
 const authStore = useAuthStore();
@@ -157,7 +157,7 @@ onMounted(() => {
     <!-- Top Action & Persona Bar -->
     <header class="dash-topbar">
       <div class="topbar-left">
-        <div class="dash-brand" @click="emit('navigate', 'landing')">
+        <div class="dash-brand" @click="emit('navigate', 'geoportal')">
           <div class="dash-logo">
             <img src="/favicon.svg" alt="Logo Minahasa Selatan" width="24" height="24" />
           </div>
@@ -204,7 +204,7 @@ onMounted(() => {
           <span>Lihat Peta</span>
         </button>
 
-        <button class="btn-dash-logout" @click="authStore.logout(); emit('navigate', 'landing');">
+        <button class="btn-dash-logout" @click="authStore.logout(); emit('navigate', 'geoportal');">
           <LogOut :size="16" />
         </button>
       </div>
