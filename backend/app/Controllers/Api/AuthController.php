@@ -435,6 +435,51 @@ class AuthController extends BaseApiController
     }
 
     /**
+     * CRUD User: Perbarui Data Pengguna (Edit User)
+     */
+    public function updateUser(): ResponseInterface
+    {
+        try {
+            $input = $this->request->getJSON(true) ?? [];
+        } catch (\Throwable) {
+            $input = [];
+        }
+        if (empty($input)) {
+            $input = $this->request->getPost() ?? [];
+        }
+
+        $userId = (int)($input['id'] ?? 0);
+        $namaLengkap = trim($input['nama_lengkap'] ?? '');
+        $email = trim($input['email'] ?? '');
+        $role = trim($input['role'] ?? '');
+        $opd = trim($input['opd'] ?? '');
+        $kodeOpd = strtoupper(trim($input['kode_opd'] ?? ''));
+
+        if ($userId === 0) {
+            return $this->respondError('ID pengguna tidak valid.', 400);
+        }
+
+        $users = self::getStorageUsers();
+        foreach ($users as &$u) {
+            if ($u['id'] === $userId) {
+                if (!empty($namaLengkap)) $u['nama_lengkap'] = $namaLengkap;
+                if (!empty($email)) $u['email'] = $email;
+                if (!empty($role)) {
+                    $u['role'] = $role;
+                    $u['role_label'] = isset($this->officialRoles[$role]) ? $this->officialRoles[$role]['label'] : ucfirst($role);
+                }
+                if (!empty($opd)) $u['opd'] = $opd;
+                if (!empty($kodeOpd)) $u['kode_opd'] = $kodeOpd;
+
+                self::saveStorageUsers($users);
+                return $this->respondSuccess($u, "Data pengguna '{$u['nama_lengkap']}' berhasil diperbarui.");
+            }
+        }
+
+        return $this->respondError('Pengguna tidak ditemukan.', 404);
+    }
+
+    /**
      * CRUD User: Hapus Akun Pengguna
      */
     public function deleteUser(): ResponseInterface

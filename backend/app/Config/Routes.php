@@ -47,15 +47,28 @@ $routes->group('spasials', static function ($routes) {
     $routes->post('workflow/datasets/delete', 'Api\WorkflowController::deleteDataset');
     $routes->post('workflow/transition', 'Api\WorkflowController::transition');
 
-    // Modul Superadmin: Data Dasar Geospasial (Upload, Validasi & Hapus SHP)
+    // Modul Superadmin & Admin GIS: Data Dasar Geospasial (Upload, Validasi & Hapus SHP)
     $routes->get('admin/data-dasar', 'Api\WorkflowController::dataDasar');
     $routes->post('admin/data-dasar/upload', 'Api\WorkflowController::uploadDataDasar');
     $routes->post('admin/data-dasar/activate', 'Api\WorkflowController::activateDataDasar');
     $routes->post('admin/data-dasar/delete', 'Api\WorkflowController::deleteDataDasar');
 
-    // Modul Manajemen Pengguna & OPD (Superadmin & Admin OPD)
+    // Modul Manajemen Pengguna & Hak Akses (Superadmin & Admin OPD)
     $routes->get('admin/users', 'Api\AuthController::getUsers');
     $routes->post('admin/users/create', 'Api\AuthController::createUser');
+    $routes->post('admin/users/update', 'Api\AuthController::updateUser');
     $routes->post('admin/users/toggle', 'Api\AuthController::toggleUserStatus');
     $routes->post('admin/users/delete', 'Api\AuthController::deleteUser');
+
+    // Modul Master Data OPD (Superadmin, Admin GIS & Admin OPD)
+    $routes->get('admin/opd', 'Api\MasterDataController::getOpds');
+    $routes->post('admin/opd/create', 'Api\MasterDataController::createOpd');
+    $routes->post('admin/opd/update', 'Api\MasterDataController::updateOpd');
+    $routes->post('admin/opd/delete', 'Api\MasterDataController::deleteOpd');
+
+    // Modul Master Kategori Spasial Tematik (Superadmin & Admin GIS)
+    $routes->get('admin/kategori', 'Api\MasterDataController::getKategori');
+    $routes->post('admin/kategori/create', 'Api\MasterDataController::createKategori');
+    $routes->post('admin/kategori/update', 'Api\MasterDataController::updateKategori');
+    $routes->post('admin/kategori/delete', 'Api\MasterDataController::deleteKategori');
 });

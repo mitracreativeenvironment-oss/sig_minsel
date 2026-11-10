@@ -169,7 +169,7 @@ class WorkflowController extends BaseApiController
         ]
     ];
 
-    protected static function getStorageDatasets(): array
+    public static function getStorageDatasets(): array
     {
         $file = WRITEPATH . 'datasets_workflow.json';
         if (file_exists($file)) {
@@ -182,7 +182,7 @@ class WorkflowController extends BaseApiController
         return self::$mockDatasets;
     }
 
-    protected static function saveStorageDatasets(array $datasets): void
+    public static function saveStorageDatasets(array $datasets): void
     {
         $file = WRITEPATH . 'datasets_workflow.json';
         file_put_contents($file, json_encode($datasets, JSON_PRETTY_PRINT));

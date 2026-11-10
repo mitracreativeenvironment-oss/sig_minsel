@@ -232,3 +232,35 @@ export interface ShpValidationReport {
   topology: string;
   features: number;
 }
+
+// ==========================================
+// MASTER DATA: OPD & KATEGORI SPASIAL
+// ==========================================
+
+export interface OpdItem {
+  id: number;
+  kode_opd: string;
+  nama_opd: string;
+  singkatan?: string;
+  email: string;
+  telepon: string;
+  alamat: string;
+  pic: string;
+  is_active: boolean;
+  total_datasets?: number;
+  total_kategori?: number;
+  created_at?: string;
+}
+
+export interface KategoriSpasialItem {
+  id: number;
+  kode: string;
+  nama_kategori: string;
+  deskripsi: string;
+  icon: string;
+  warna_default: string;
+  opd_id: number;
+  nama_opd: string;
+  is_active: boolean;
+  total_datasets?: number;
+}

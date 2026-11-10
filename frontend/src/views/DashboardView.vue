@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue';
 import { useAuthStore } from '../stores/authStore';
 import { sigApi } from '../services/api';
 import { notify, confirmDialog, promptNoteDialog } from '../services/alert';
-import type { RoleName, DatasetItem, DataDasarVersion, WorkflowState, UserItem } from '../types';
+import type { RoleName, DatasetItem, DataDasarVersion, WorkflowState, UserItem, OpdItem, KategoriSpasialItem } from '../types';
 import {
   LayoutDashboard,
   Database,
@@ -33,7 +33,8 @@ import {
   ToggleLeft,
   ToggleRight,
   FilePlus2,
-  UserPlus
+  UserPlus,
+  Building2
 } from 'lucide-vue-next';
 
 const emit = defineEmits<{
@@ -42,7 +43,7 @@ const emit = defineEmits<{
 
 const authStore = useAuthStore();
 
-type NavTab = 'overview' | 'datasets' | 'validation' | 'approval' | 'data_dasar' | 'users' | 'audit';
+type NavTab = 'overview' | 'datasets' | 'validation' | 'approval' | 'data_dasar' | 'kategori' | 'opd' | 'users' | 'audit';
 const activeTab = ref<NavTab>('overview');
 
 // Data State
@@ -50,6 +51,8 @@ const datasets = ref<DatasetItem[]>([]);
 const dataDasarList = ref<DataDasarVersion[]>([]);
 const workflowStates = ref<WorkflowState[]>([]);
 const usersList = ref<UserItem[]>([]);
+const opdList = ref<OpdItem[]>([]);
+const kategoriList = ref<KategoriSpasialItem[]>([]);
 const isLoading = ref(false);
 
 // View Mode State with LocalStorage Persistence
@@ -215,6 +218,37 @@ const filteredUsers = computed(() => {
   });
 });
 
+// Search & Filter for OPD
+const searchOpdQuery = ref('');
+const filteredOpds = computed(() => {
+  const q = searchOpdQuery.value.trim().toLowerCase();
+  return opdList.value.filter((o) => {
+    return (
+      !q ||
+      o.nama_opd.toLowerCase().includes(q) ||
+      o.kode_opd.toLowerCase().includes(q) ||
+      (o.singkatan && o.singkatan.toLowerCase().includes(q)) ||
+      (o.alamat && o.alamat.toLowerCase().includes(q)) ||
+      (o.pic && o.pic.toLowerCase().includes(q))
+    );
+  });
+});
+
+// Search & Filter for Kategori Spasial
+const searchKategoriQuery = ref('');
+const filteredKategoris = computed(() => {
+  const q = searchKategoriQuery.value.trim().toLowerCase();
+  return kategoriList.value.filter((k) => {
+    return (
+      !q ||
+      k.nama_kategori.toLowerCase().includes(q) ||
+      k.kode.toLowerCase().includes(q) ||
+      (k.deskripsi && k.deskripsi.toLowerCase().includes(q)) ||
+      (k.nama_opd && k.nama_opd.toLowerCase().includes(q))
+    );
+  });
+});
+
 // ==========================================
 // HAK AKSES ROLE (ROLE PERMISSIONS)
 // ==========================================
@@ -242,6 +276,22 @@ const canManageUsers = computed(() =>
   ['superadmin', 'admin_opd'].includes(authStore.currentRole)
 );
 
+const canManageOpd = computed(() =>
+  ['superadmin', 'admin_gis', 'admin_opd'].includes(authStore.currentRole)
+);
+
+const canFullManageOpd = computed(() =>
+  ['superadmin', 'admin_gis'].includes(authStore.currentRole)
+);
+
+const canManageKategori = computed(() =>
+  ['superadmin', 'admin_gis'].includes(authStore.currentRole)
+);
+
+const canAccessDataDasar = computed(() =>
+  ['superadmin', 'admin_gis'].includes(authStore.currentRole)
+);
+
 const isReadOnlyRole = computed(() =>
   ['pimpinan', 'publik'].includes(authStore.currentRole)
 );
@@ -252,6 +302,11 @@ const isReadOnlyRole = computed(() =>
 const isCreateDatasetModalOpen = ref(false);
 const isEditDatasetModalOpen = ref(false);
 const isCreateUserModalOpen = ref(false);
+const isEditUserModalOpen = ref(false);
+const isCreateOpdModalOpen = ref(false);
+const isEditOpdModalOpen = ref(false);
+const isCreateKategoriModalOpen = ref(false);
+const isEditKategoriModalOpen = ref(false);
 
 const newDatasetForm = ref({
   nama_dataset: '',
@@ -476,14 +531,262 @@ async function handleDeleteUserWithConfirm(u: UserItem) {
   }
 }
 
+// User Edit Handlers
+const editUserForm = ref<{
+  id: number;
+  username: string;
+  nama_lengkap: string;
+  email: string;
+  role: RoleName;
+  opd: string;
+  kode_opd: string;
+}>({
+  id: 0,
+  username: '',
+  nama_lengkap: '',
+  email: '',
+  role: 'operator_opd',
+  opd: '',
+  kode_opd: ''
+});
+
+function openEditUserModal(u: UserItem) {
+  editUserForm.value = {
+    id: u.id,
+    username: u.username,
+    nama_lengkap: u.nama_lengkap,
+    email: u.email,
+    role: u.role,
+    opd: u.opd,
+    kode_opd: u.kode_opd
+  };
+  isEditUserModalOpen.value = true;
+}
+
+async function handleUpdateUser() {
+  try {
+    const res = await sigApi.updateUser(editUserForm.value);
+    const target = usersList.value.find((u) => u.id === editUserForm.value.id);
+    if (target) {
+      Object.assign(target, res.data);
+    }
+    isEditUserModalOpen.value = false;
+    notify.success('Pengguna Diperbarui', res.message || 'Data akun pengguna berhasil disimpan.');
+  } catch (e: any) {
+    notify.error('Gagal Memperbarui Pengguna', e.message);
+  }
+}
+
+// ==========================================
+// CRUD MASTER OPD HANDLERS
+// ==========================================
+const newOpdForm = ref({
+  kode_opd: '',
+  nama_opd: '',
+  singkatan: '',
+  email: '',
+  telepon: '',
+  alamat: '',
+  pic: ''
+});
+
+const editOpdForm = ref({
+  id: 0,
+  kode_opd: '',
+  nama_opd: '',
+  singkatan: '',
+  email: '',
+  telepon: '',
+  alamat: '',
+  pic: '',
+  is_active: true
+});
+
+function openCreateOpdModal() {
+  newOpdForm.value = {
+    kode_opd: '',
+    nama_opd: '',
+    singkatan: '',
+    email: '',
+    telepon: '',
+    alamat: 'Kabupaten Minahasa Selatan',
+    pic: ''
+  };
+  isCreateOpdModalOpen.value = true;
+}
+
+async function handleCreateOpd() {
+  if (!newOpdForm.value.kode_opd || !newOpdForm.value.nama_opd) {
+    notify.error('Input Tidak Lengkap', 'Kode OPD dan Nama OPD wajib diisi!');
+    return;
+  }
+  try {
+    const res = await sigApi.createOpd(newOpdForm.value);
+    opdList.value.unshift(res.data);
+    isCreateOpdModalOpen.value = false;
+    notify.success('OPD Berhasil Didaftarkan', res.message);
+  } catch (e: any) {
+    notify.error('Gagal Menambah OPD', e.message);
+  }
+}
+
+function openEditOpdModal(o: OpdItem) {
+  editOpdForm.value = {
+    id: o.id,
+    kode_opd: o.kode_opd,
+    nama_opd: o.nama_opd,
+    singkatan: o.singkatan || o.kode_opd,
+    email: o.email || '',
+    telepon: o.telepon || '',
+    alamat: o.alamat || '',
+    pic: o.pic || '',
+    is_active: o.is_active
+  };
+  isEditOpdModalOpen.value = true;
+}
+
+async function handleUpdateOpd() {
+  try {
+    const res = await sigApi.updateOpd(editOpdForm.value);
+    const target = opdList.value.find((o) => o.id === editOpdForm.value.id);
+    if (target) {
+      Object.assign(target, res.data);
+    }
+    isEditOpdModalOpen.value = false;
+    notify.success('Data OPD Diperbarui', res.message);
+  } catch (e: any) {
+    notify.error('Gagal Memperbarui OPD', e.message);
+  }
+}
+
+async function handleDeleteOpdWithConfirm(o: OpdItem) {
+  const confirmed = await confirmDialog({
+    title: 'Hapus Master OPD?',
+    text: `OPD "${o.nama_opd}" (${o.kode_opd}) akan dihapus dari sistem.`,
+    confirmButtonText: 'Ya, Hapus OPD',
+    icon: 'warning',
+    isDangerous: true
+  });
+  if (!confirmed) return;
+  try {
+    const res = await sigApi.deleteOpd(o.id);
+    opdList.value = opdList.value.filter((item) => item.id !== o.id);
+    notify.success('OPD Dihapus', res.message);
+  } catch (e: any) {
+    notify.error('Gagal Hapus OPD', e.message);
+  }
+}
+
+// ==========================================
+// CRUD MASTER KATEGORI SPASIAL HANDLERS
+// ==========================================
+const newKategoriForm = ref({
+  kode: '',
+  nama_kategori: '',
+  deskripsi: '',
+  icon: 'layers',
+  warna_default: '#2563eb',
+  opd_id: 2,
+  nama_opd: 'Dinas Komunikasi dan Informatika'
+});
+
+const editKategoriForm = ref({
+  id: 0,
+  kode: '',
+  nama_kategori: '',
+  deskripsi: '',
+  icon: 'layers',
+  warna_default: '#2563eb',
+  opd_id: 2,
+  nama_opd: '',
+  is_active: true
+});
+
+function openCreateKategoriModal() {
+  newKategoriForm.value = {
+    kode: '',
+    nama_kategori: '',
+    deskripsi: '',
+    icon: 'layers',
+    warna_default: '#2563eb',
+    opd_id: 2,
+    nama_opd: 'Dinas Komunikasi dan Informatika'
+  };
+  isCreateKategoriModalOpen.value = true;
+}
+
+async function handleCreateKategori() {
+  if (!newKategoriForm.value.nama_kategori) {
+    notify.error('Input Tidak Lengkap', 'Nama kategori spasial wajib diisi!');
+    return;
+  }
+  try {
+    const res = await sigApi.createKategori(newKategoriForm.value);
+    kategoriList.value.unshift(res.data);
+    isCreateKategoriModalOpen.value = false;
+    notify.success('Kategori Berhasil Dibuat', res.message);
+  } catch (e: any) {
+    notify.error('Gagal Menambah Kategori', e.message);
+  }
+}
+
+function openEditKategoriModal(k: KategoriSpasialItem) {
+  editKategoriForm.value = {
+    id: k.id,
+    kode: k.kode,
+    nama_kategori: k.nama_kategori,
+    deskripsi: k.deskripsi || '',
+    icon: k.icon || 'layers',
+    warna_default: k.warna_default || '#2563eb',
+    opd_id: k.opd_id,
+    nama_opd: k.nama_opd || '',
+    is_active: k.is_active
+  };
+  isEditKategoriModalOpen.value = true;
+}
+
+async function handleUpdateKategori() {
+  try {
+    const res = await sigApi.updateKategori(editKategoriForm.value);
+    const target = kategoriList.value.find((k) => k.id === editKategoriForm.value.id);
+    if (target) {
+      Object.assign(target, res.data);
+    }
+    isEditKategoriModalOpen.value = false;
+    notify.success('Kategori Diperbarui', res.message);
+  } catch (e: any) {
+    notify.error('Gagal Memperbarui Kategori', e.message);
+  }
+}
+
+async function handleDeleteKategoriWithConfirm(k: KategoriSpasialItem) {
+  const confirmed = await confirmDialog({
+    title: 'Hapus Kategori Spasial?',
+    text: `Kategori layer "${k.nama_kategori}" (${k.kode}) akan dihapus dari katalog master.`,
+    confirmButtonText: 'Ya, Hapus Kategori',
+    icon: 'warning',
+    isDangerous: true
+  });
+  if (!confirmed) return;
+  try {
+    const res = await sigApi.deleteKategori(k.id);
+    kategoriList.value = kategoriList.value.filter((item) => item.id !== k.id);
+    notify.success('Kategori Dihapus', res.message);
+  } catch (e: any) {
+    notify.error('Gagal Hapus Kategori', e.message);
+  }
+}
+
 async function loadDashboardData() {
   isLoading.value = true;
   try {
-    const [wfRes, dsRes, ddRes, usersRes] = await Promise.allSettled([
+    const [wfRes, dsRes, ddRes, usersRes, opdRes, katRes] = await Promise.allSettled([
       sigApi.getWorkflowStates(),
       sigApi.getWorkflowDatasets(),
       sigApi.getDataDasar(),
-      sigApi.getUsers()
+      sigApi.getUsers(),
+      sigApi.getOpds(),
+      sigApi.getKategoriAdmin()
     ]);
 
     if (wfRes.status === 'fulfilled') {
@@ -497,6 +800,12 @@ async function loadDashboardData() {
     }
     if (usersRes.status === 'fulfilled') {
       usersList.value = usersRes.value.data;
+    }
+    if (opdRes.status === 'fulfilled') {
+      opdList.value = opdRes.value.data;
+    }
+    if (katRes.status === 'fulfilled') {
+      kategoriList.value = katRes.value.data;
     }
   } catch (e) {
     console.warn('Gagal memuat data dashboard:', e);
@@ -636,7 +945,16 @@ async function handleActivateDataDasarWithConfirm(item: DataDasarVersion) {
 
 function switchRole(role: RoleName) {
   authStore.quickSwitch(role);
-  if (role !== 'superadmin' && activeTab.value === 'data_dasar') {
+  if (!['superadmin', 'admin_gis'].includes(role) && activeTab.value === 'data_dasar') {
+    activeTab.value = 'overview';
+  }
+  if (!['superadmin', 'admin_gis', 'admin_opd', 'validator_gis'].includes(role) && activeTab.value === 'kategori') {
+    activeTab.value = 'overview';
+  }
+  if (!['superadmin', 'admin_gis', 'admin_opd'].includes(role) && activeTab.value === 'opd') {
+    activeTab.value = 'overview';
+  }
+  if (!['superadmin', 'admin_opd'].includes(role) && activeTab.value === 'users') {
     activeTab.value = 'overview';
   }
   const roleObj = authStore.roles.find((r) => r.name === role);
@@ -758,9 +1076,9 @@ onMounted(() => {
             <span>Persetujuan Terpusat</span>
           </button>
 
-          <!-- Modul Eksklusif Superadmin: Upload SHP Batas Wilayah -->
+          <!-- Modul Superadmin & Admin GIS: Upload SHP Batas Wilayah -->
           <button
-            v-if="authStore.currentRole === 'superadmin'"
+            v-if="canAccessDataDasar"
             class="nav-item item-superadmin"
             :class="{ active: activeTab === 'data_dasar' }"
             @click="activeTab = 'data_dasar'"
@@ -769,6 +1087,29 @@ onMounted(() => {
             <span>Data Dasar SHP Wilayah</span>
           </button>
 
+          <!-- Modul Master Kategori Spasial Tematik -->
+          <button
+            v-if="['superadmin', 'admin_gis', 'admin_opd', 'validator_gis'].includes(authStore.currentRole)"
+            class="nav-item"
+            :class="{ active: activeTab === 'kategori' }"
+            @click="activeTab = 'kategori'"
+          >
+            <Layers :size="18" />
+            <span>Kategori Spasial ({{ kategoriList.length }})</span>
+          </button>
+
+          <!-- Modul Master OPD (Perangkat Daerah) -->
+          <button
+            v-if="['superadmin', 'admin_gis', 'admin_opd'].includes(authStore.currentRole)"
+            class="nav-item"
+            :class="{ active: activeTab === 'opd' }"
+            @click="activeTab = 'opd'"
+          >
+            <Building2 :size="18" />
+            <span>Master OPD ({{ opdList.length }})</span>
+          </button>
+
+          <!-- Modul Manajemen Pengguna & Hak Akses -->
           <button
             v-if="['superadmin', 'admin_opd'].includes(authStore.currentRole)"
             class="nav-item"
@@ -776,7 +1117,7 @@ onMounted(() => {
             @click="activeTab = 'users'"
           >
             <Users :size="18" />
-            <span>Pengguna & OPD</span>
+            <span>Pengguna &amp; Hak Akses</span>
           </button>
 
           <button
@@ -1551,7 +1892,396 @@ onMounted(() => {
         </div>
 
         <!-- ============================================================== -->
-        <!-- TAB 6: USERS & OPD (WITH SEARCH & ROLE FILTER)                 -->
+        <!-- TAB 6: KATEGORI SPASIAL TEMATIK (GRID & LIST + CRUD)           -->
+        <!-- ============================================================== -->
+        <div v-if="activeTab === 'kategori'" class="tab-content">
+          <div class="content-header">
+            <div>
+              <h2 class="content-title">Master Kategori Layer Spasial Tematik</h2>
+              <p class="content-sub">Katalog 28 tema geospasial, standarisasi warna simbologi, dan penanggung jawab OPD pembina</p>
+            </div>
+
+            <div class="header-controls-cluster">
+              <!-- Tambah Kategori Button -->
+              <button
+                v-if="canManageKategori"
+                type="button"
+                class="btn-create-dataset"
+                @click="openCreateKategoriModal"
+                title="Tambah Kategori Spasial Baru"
+              >
+                <Plus :size="15" />
+                <span>Tambah Kategori</span>
+              </button>
+
+              <!-- Search Kategori -->
+              <div class="search-input-wrap search-sm">
+                <Search :size="15" class="search-icon" />
+                <input
+                  v-model="searchKategoriQuery"
+                  type="text"
+                  placeholder="Cari tema, kode, atau OPD..."
+                  class="search-input-field"
+                />
+                <button
+                  v-if="searchKategoriQuery"
+                  type="button"
+                  class="clear-search-btn"
+                  @click="searchKategoriQuery = ''"
+                >
+                  <X :size="13" />
+                </button>
+              </div>
+
+              <!-- View Mode Toggle -->
+              <div class="view-mode-toggle">
+                <button
+                  type="button"
+                  class="toggle-btn"
+                  :class="{ active: viewMode === 'grid' }"
+                  @click="setViewMode('grid')"
+                  title="Tampilan Grid (Bento Cards)"
+                >
+                  <LayoutGrid :size="16" />
+                </button>
+                <button
+                  type="button"
+                  class="toggle-btn"
+                  :class="{ active: viewMode === 'list' }"
+                  @click="setViewMode('list')"
+                  title="Tampilan Tabel (List View)"
+                >
+                  <List :size="16" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- BENTO GRID VIEW FOR KATEGORI -->
+          <div v-if="viewMode === 'grid'" class="bento-grid">
+            <div
+              v-for="k in filteredKategoris"
+              :key="k.id"
+              class="bento-card"
+            >
+              <div class="dataset-card-header">
+                <div class="theme-color-dot" :style="{ backgroundColor: k.warna_default }"></div>
+                <span class="badge-source font-mono">{{ k.kode }}</span>
+                <span class="card-badge badge-published">
+                  {{ k.is_active ? 'Aktif' : 'Arsip' }}
+                </span>
+              </div>
+
+              <div class="card-body">
+                <h3 class="card-title">{{ k.nama_kategori }}</h3>
+                <p class="card-desc">{{ k.deskripsi || 'Tidak ada deskripsi ruang lingkup.' }}</p>
+                <div class="card-meta-row">
+                  <span class="meta-label">OPD Pembina:</span>
+                  <span class="meta-value">{{ k.nama_opd || 'Pemkab Minahasa Selatan' }}</span>
+                </div>
+                <div class="card-meta-row">
+                  <span class="meta-label">Total Dataset:</span>
+                  <span class="meta-value text-blue">{{ k.total_datasets || 0 }} Dataset</span>
+                </div>
+              </div>
+
+              <div class="card-footer">
+                <span class="color-swatch-label">
+                  <span class="color-preview-box" :style="{ backgroundColor: k.warna_default }"></span>
+                  <code>{{ k.warna_default }}</code>
+                </span>
+
+                <div class="action-btn-group" v-if="canManageKategori">
+                  <button
+                    type="button"
+                    class="btn-act btn-edit"
+                    @click="openEditKategoriModal(k)"
+                    title="Edit Kategori"
+                  >
+                    <Edit3 :size="12" />
+                    <span>Edit</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-act btn-delete"
+                    @click="handleDeleteKategoriWithConfirm(k)"
+                    title="Hapus Kategori"
+                  >
+                    <Trash2 :size="12" />
+                    <span>Hapus</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TABLE LIST VIEW FOR KATEGORI -->
+          <div v-else class="table-card">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Warna &amp; Tema Kategori</th>
+                  <th>Kode Kategori</th>
+                  <th>Deskripsi &amp; Ruang Lingkup</th>
+                  <th>OPD Pembina / Penanggung Jawab</th>
+                  <th>Dataset Terkait</th>
+                  <th>Status</th>
+                  <th v-if="canManageKategori">Tindakan</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="k in filteredKategoris" :key="k.id">
+                  <td>
+                    <div class="cell-main flex-row-align">
+                      <span class="color-preview-box" :style="{ backgroundColor: k.warna_default }"></span>
+                      <span class="cell-title">{{ k.nama_kategori }}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="text-source font-mono">{{ k.kode }}</span>
+                  </td>
+                  <td>
+                    <span class="cell-desc-table">{{ k.deskripsi || '-' }}</span>
+                  </td>
+                  <td>
+                    <span class="badge-opd">{{ k.nama_opd }}</span>
+                  </td>
+                  <td>
+                    <span class="badge-geom">{{ k.total_datasets || 0 }} Dataset</span>
+                  </td>
+                  <td>
+                    <span class="status-pill" :class="k.is_active ? 'st-published' : 'st-draft'">
+                      {{ k.is_active ? 'Aktif' : 'Nonaktif' }}
+                    </span>
+                  </td>
+                  <td v-if="canManageKategori">
+                    <div class="action-btn-group">
+                      <button
+                        type="button"
+                        class="btn-act btn-edit"
+                        @click="openEditKategoriModal(k)"
+                        title="Edit Kategori"
+                      >
+                        <Edit3 :size="12" />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        type="button"
+                        class="btn-act btn-delete"
+                        @click="handleDeleteKategoriWithConfirm(k)"
+                        title="Hapus Kategori"
+                      >
+                        <Trash2 :size="12" />
+                        <span>Hapus</span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- TAB 7: MASTER ORGANISASI PERANGKAT DAERAH (OPD)                -->
+        <!-- ============================================================== -->
+        <div v-if="activeTab === 'opd'" class="tab-content">
+          <div class="content-header">
+            <div>
+              <h2 class="content-title">Master Organisasi Perangkat Daerah (OPD)</h2>
+              <p class="content-sub">Pemerintah Kabupaten Minahasa Selatan — Unit Produsen Data Spasial &amp; Pembina Sektoral</p>
+            </div>
+
+            <div class="header-controls-cluster">
+              <!-- Tambah OPD Button -->
+              <button
+                v-if="canFullManageOpd"
+                type="button"
+                class="btn-create-dataset"
+                @click="openCreateOpdModal"
+                title="Tambah Perangkat Daerah Baru"
+              >
+                <Building2 :size="15" />
+                <span>Tambah OPD</span>
+              </button>
+
+              <!-- Search OPD -->
+              <div class="search-input-wrap search-sm">
+                <Search :size="15" class="search-icon" />
+                <input
+                  v-model="searchOpdQuery"
+                  type="text"
+                  placeholder="Cari nama OPD, kode, atau PIC..."
+                  class="search-input-field"
+                />
+                <button
+                  v-if="searchOpdQuery"
+                  type="button"
+                  class="clear-search-btn"
+                  @click="searchOpdQuery = ''"
+                >
+                  <X :size="13" />
+                </button>
+              </div>
+
+              <!-- View Mode Toggle -->
+              <div class="view-mode-toggle">
+                <button
+                  type="button"
+                  class="toggle-btn"
+                  :class="{ active: viewMode === 'grid' }"
+                  @click="setViewMode('grid')"
+                  title="Tampilan Grid (Bento Cards)"
+                >
+                  <LayoutGrid :size="16" />
+                </button>
+                <button
+                  type="button"
+                  class="toggle-btn"
+                  :class="{ active: viewMode === 'list' }"
+                  @click="setViewMode('list')"
+                  title="Tampilan Tabel (List View)"
+                >
+                  <List :size="16" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- BENTO GRID VIEW FOR OPD -->
+          <div v-if="viewMode === 'grid'" class="bento-grid">
+            <div
+              v-for="o in filteredOpds"
+              :key="o.id"
+              class="bento-card"
+            >
+              <div class="dataset-card-header">
+                <span class="badge-opd font-mono">{{ o.kode_opd }}</span>
+                <span class="card-badge badge-published">
+                  {{ o.is_active ? 'Aktif' : 'Nonaktif' }}
+                </span>
+              </div>
+
+              <div class="card-body">
+                <h3 class="card-title">{{ o.nama_opd }}</h3>
+                <p class="card-desc">
+                  <strong>Alamat:</strong> {{ o.alamat || 'Kabupaten Minahasa Selatan' }}
+                </p>
+                <div class="card-meta-row">
+                  <span class="meta-label">PIC / Kepala:</span>
+                  <span class="meta-value">{{ o.pic || '-' }}</span>
+                </div>
+                <div class="card-meta-row">
+                  <span class="meta-label">Kontak:</span>
+                  <span class="meta-value">{{ o.telepon || '-' }} &bull; {{ o.email }}</span>
+                </div>
+                <div class="card-meta-row">
+                  <span class="meta-label">Dataset Sektoral:</span>
+                  <span class="meta-value text-blue">{{ o.total_datasets || 0 }} Dataset</span>
+                </div>
+              </div>
+
+              <div class="card-footer">
+                <span class="text-source">{{ o.singkatan || o.kode_opd }}</span>
+
+                <div class="action-btn-group" v-if="canManageOpd">
+                  <button
+                    type="button"
+                    class="btn-act btn-edit"
+                    @click="openEditOpdModal(o)"
+                    title="Edit Data OPD"
+                  >
+                    <Edit3 :size="12" />
+                    <span>Edit</span>
+                  </button>
+                  <button
+                    v-if="canFullManageOpd && !['DISKOMINFO', 'BAPELITBANGDA', 'DPUPR'].includes(o.kode_opd)"
+                    type="button"
+                    class="btn-act btn-delete"
+                    @click="handleDeleteOpdWithConfirm(o)"
+                    title="Hapus OPD"
+                  >
+                    <Trash2 :size="12" />
+                    <span>Hapus</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TABLE LIST VIEW FOR OPD -->
+          <div v-else class="table-card">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Nama &amp; Kode OPD</th>
+                  <th>Kontak &amp; Email</th>
+                  <th>Alamat Kantor</th>
+                  <th>Penanggung Jawab (PIC)</th>
+                  <th>Total Dataset</th>
+                  <th>Status</th>
+                  <th v-if="canManageOpd">Tindakan</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="o in filteredOpds" :key="o.id">
+                  <td>
+                    <div class="cell-main">
+                      <span class="cell-title">{{ o.nama_opd }}</span>
+                      <span class="cell-meta font-mono">{{ o.kode_opd }} &bull; {{ o.singkatan || o.kode_opd }}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="cell-stacked">
+                      <span>{{ o.email }}</span>
+                      <span class="text-source">{{ o.telepon || '-' }}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="cell-desc-table">{{ o.alamat || '-' }}</span>
+                  </td>
+                  <td>
+                    <span class="badge-role">{{ o.pic || '-' }}</span>
+                  </td>
+                  <td>
+                    <span class="badge-geom">{{ o.total_datasets || 0 }} Dataset</span>
+                  </td>
+                  <td>
+                    <span class="status-pill" :class="o.is_active ? 'st-published' : 'st-draft'">
+                      {{ o.is_active ? 'Aktif' : 'Nonaktif' }}
+                    </span>
+                  </td>
+                  <td v-if="canManageOpd">
+                    <div class="action-btn-group">
+                      <button
+                        type="button"
+                        class="btn-act btn-edit"
+                        @click="openEditOpdModal(o)"
+                        title="Edit Data OPD"
+                      >
+                        <Edit3 :size="12" />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        v-if="canFullManageOpd && !['DISKOMINFO', 'BAPELITBANGDA', 'DPUPR'].includes(o.kode_opd)"
+                        type="button"
+                        class="btn-act btn-delete"
+                        @click="handleDeleteOpdWithConfirm(o)"
+                        title="Hapus OPD"
+                      >
+                        <Trash2 :size="12" />
+                        <span>Hapus</span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- TAB 8: USERS (PENGGUNA & HAK AKSES)                            -->
         <!-- ============================================================== -->
         <div v-if="activeTab === 'users'" class="tab-content">
           <div class="content-header">
@@ -1638,7 +2368,7 @@ onMounted(() => {
                   </td>
                   <td>
                     <div class="action-btn-group">
-                      <template v-if="u.id !== 1 && canManageUsers">
+                      <span v-if="u.id !== 1 && canManageUsers" class="btn-wrap-group">
                         <button
                           type="button"
                           class="btn-act"
@@ -1653,6 +2383,16 @@ onMounted(() => {
 
                         <button
                           type="button"
+                          class="btn-act btn-edit"
+                          @click="openEditUserModal(u)"
+                          title="Edit Informasi Pengguna"
+                        >
+                          <Edit3 :size="12" />
+                          <span>Edit</span>
+                        </button>
+
+                        <button
+                          type="button"
                           class="btn-act btn-delete"
                           @click="handleDeleteUserWithConfirm(u)"
                           title="Hapus Akun Pengguna"
@@ -1660,7 +2400,7 @@ onMounted(() => {
                           <Trash2 :size="12" />
                           <span>Hapus</span>
                         </button>
-                      </template>
+                      </span>
                       <span v-else class="text-source">
                         <ShieldCheck :size="13" />
                         <span>Akun Utama Terproteksi</span>
@@ -1926,7 +2666,325 @@ onMounted(() => {
           </div>
         </form>
       </div>
+    <!-- ============================================================== -->
+    <!-- MODAL 4: EDIT DATA PENGGUNA                                   -->
+    <!-- ============================================================== -->
+    <div v-if="isEditUserModalOpen" class="modal-backdrop" @click.self="isEditUserModalOpen = false">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <Edit3 :size="18" class="text-amber" />
+            <h3 class="modal-title">Edit Informasi Pengguna (@{{ editUserForm.username }})</h3>
+          </div>
+          <button type="button" class="btn-close-modal" @click="isEditUserModalOpen = false">
+            <X :size="16" />
+          </button>
+        </div>
+
+        <form class="modal-form" @submit.prevent="handleUpdateUser">
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Username</label>
+              <input :value="editUserForm.username" type="text" class="form-input font-mono" disabled />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Nama Lengkap &amp; Gelar <span class="text-red">*</span></label>
+              <input v-model="editUserForm.nama_lengkap" type="text" class="form-input" required />
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label class="form-label">Email Dinas</label>
+            <input v-model="editUserForm.email" type="email" class="form-input" />
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Peran Sistem (Role)</label>
+              <select v-model="editUserForm.role" class="form-input">
+                <option value="superadmin">Superadmin</option>
+                <option value="admin_gis">Admin GIS</option>
+                <option value="admin_opd">Admin OPD</option>
+                <option value="operator_opd">Operator OPD</option>
+                <option value="validator_gis">Validator GIS</option>
+                <option value="approver_data">Approver Data (Bappelitbangda)</option>
+                <option value="pimpinan">Pimpinan Daerah</option>
+                <option value="publik">Publik</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label class="form-label">Instansi / OPD</label>
+              <select v-model="editUserForm.opd" class="form-input">
+                <option v-for="o in opdList" :key="o.id" :value="o.nama_opd">
+                  {{ o.nama_opd }} ({{ o.kode_opd }})
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-modal-cancel" @click="isEditUserModalOpen = false">Batal</button>
+            <button type="submit" class="btn-modal-submit">
+              <CheckCircle2 :size="15" />
+              <span>Simpan Perubahan</span>
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
+
+    <!-- ============================================================== -->
+    <!-- MODAL 5: TAMBAH MASTER OPD BARU                               -->
+    <!-- ============================================================== -->
+    <div v-if="isCreateOpdModalOpen" class="modal-backdrop" @click.self="isCreateOpdModalOpen = false">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <Building2 :size="18" class="text-blue" />
+            <h3 class="modal-title">Tambah Perangkat Daerah (OPD) Baru</h3>
+          </div>
+          <button type="button" class="btn-close-modal" @click="isCreateOpdModalOpen = false">
+            <X :size="16" />
+          </button>
+        </div>
+
+        <form class="modal-form" @submit.prevent="handleCreateOpd">
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Kode Singkat OPD <span class="text-red">*</span></label>
+              <input v-model="newOpdForm.kode_opd" type="text" class="form-input font-mono" placeholder="DISPAR" required />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Singkatan Nama</label>
+              <input v-model="newOpdForm.singkatan" type="text" class="form-input" placeholder="Dispar" />
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label class="form-label">Nama Lengkap Instansi / Dinas <span class="text-red">*</span></label>
+            <input v-model="newOpdForm.nama_opd" type="text" class="form-input" placeholder="Dinas Pariwisata Kabupaten Minahasa Selatan" required />
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Penanggung Jawab (PIC / Kepala)</label>
+              <input v-model="newOpdForm.pic" type="text" class="form-input" placeholder="Kepala Dinas Pariwisata" />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Kontak Telepon Kantor</label>
+              <input v-model="newOpdForm.telepon" type="text" class="form-input" placeholder="(0430) 21xxx" />
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Email Dinas Resmi</label>
+              <input v-model="newOpdForm.email" type="email" class="form-input" placeholder="dinas@minselkab.go.id" />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Alamat Kantor</label>
+              <input v-model="newOpdForm.alamat" type="text" class="form-input" placeholder="Jl. Trans Sulawesi, Amurang" />
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-modal-cancel" @click="isCreateOpdModalOpen = false">Batal</button>
+            <button type="submit" class="btn-modal-submit">
+              <Plus :size="15" />
+              <span>Daftarkan OPD</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- MODAL 6: EDIT MASTER OPD                                      -->
+    <!-- ============================================================== -->
+    <div v-if="isEditOpdModalOpen" class="modal-backdrop" @click.self="isEditOpdModalOpen = false">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <Edit3 :size="18" class="text-amber" />
+            <h3 class="modal-title">Edit Data Perangkat Daerah ({{ editOpdForm.kode_opd }})</h3>
+          </div>
+          <button type="button" class="btn-close-modal" @click="isEditOpdModalOpen = false">
+            <X :size="16" />
+          </button>
+        </div>
+
+        <form class="modal-form" @submit.prevent="handleUpdateOpd">
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Kode OPD</label>
+              <input :value="editOpdForm.kode_opd" type="text" class="form-input font-mono" disabled />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Singkatan Nama</label>
+              <input v-model="editOpdForm.singkatan" type="text" class="form-input" />
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label class="form-label">Nama Lengkap Instansi / Dinas <span class="text-red">*</span></label>
+            <input v-model="editOpdForm.nama_opd" type="text" class="form-input" required />
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Penanggung Jawab (PIC / Kepala)</label>
+              <input v-model="editOpdForm.pic" type="text" class="form-input" />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Kontak Telepon Kantor</label>
+              <input v-model="editOpdForm.telepon" type="text" class="form-input" />
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Email Dinas Resmi</label>
+              <input v-model="editOpdForm.email" type="email" class="form-input" />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Alamat Kantor</label>
+              <input v-model="editOpdForm.alamat" type="text" class="form-input" />
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-modal-cancel" @click="isEditOpdModalOpen = false">Batal</button>
+            <button type="submit" class="btn-modal-submit">
+              <CheckCircle2 :size="15" />
+              <span>Simpan Perubahan</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- MODAL 7: TAMBAH KATEGORI SPASIAL BARU                         -->
+    <!-- ============================================================== -->
+    <div v-if="isCreateKategoriModalOpen" class="modal-backdrop" @click.self="isCreateKategoriModalOpen = false">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <Layers :size="18" class="text-blue" />
+            <h3 class="modal-title">Tambah Kategori Spasial Tematik Baru</h3>
+          </div>
+          <button type="button" class="btn-close-modal" @click="isCreateKategoriModalOpen = false">
+            <X :size="16" />
+          </button>
+        </div>
+
+        <form class="modal-form" @submit.prevent="handleCreateKategori">
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Nama Kategori Tematik <span class="text-red">*</span></label>
+              <input v-model="newKategoriForm.nama_kategori" type="text" class="form-input" placeholder="Contoh: Pariwisata & Ekosistem" required />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Kode Unik Kategori</label>
+              <input v-model="newKategoriForm.kode" type="text" class="form-input font-mono" placeholder="pariwisata_ekosistem" />
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Warna Simbologi Standar</label>
+              <div class="flex-row-align gap-2">
+                <input v-model="newKategoriForm.warna_default" type="color" class="color-picker-input" />
+                <input v-model="newKategoriForm.warna_default" type="text" class="form-input font-mono" />
+              </div>
+            </div>
+            <div class="form-field">
+              <label class="form-label">OPD Pembina Data Sektoral</label>
+              <select v-model="newKategoriForm.opd_id" class="form-input">
+                <option v-for="o in opdList" :key="o.id" :value="o.id">
+                  {{ o.nama_opd }} ({{ o.kode_opd }})
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label class="form-label">Deskripsi / Ruang Lingkup Tema</label>
+            <textarea v-model="newKategoriForm.deskripsi" class="form-textarea" rows="3" placeholder="Jelaskan objek-objek geospasial yang tercakup dalam tema ini..."></textarea>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-modal-cancel" @click="isCreateKategoriModalOpen = false">Batal</button>
+            <button type="submit" class="btn-modal-submit">
+              <Plus :size="15" />
+              <span>Simpan Kategori</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- MODAL 8: EDIT KATEGORI SPASIAL                                -->
+    <!-- ============================================================== -->
+    <div v-if="isEditKategoriModalOpen" class="modal-backdrop" @click.self="isEditKategoriModalOpen = false">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <Edit3 :size="18" class="text-amber" />
+            <h3 class="modal-title">Edit Kategori Spasial ({{ editKategoriForm.kode }})</h3>
+          </div>
+          <button type="button" class="btn-close-modal" @click="isEditKategoriModalOpen = false">
+            <X :size="16" />
+          </button>
+        </div>
+
+        <form class="modal-form" @submit.prevent="handleUpdateKategori">
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Kode Kategori</label>
+              <input :value="editKategoriForm.kode" type="text" class="form-input font-mono" disabled />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Nama Kategori <span class="text-red">*</span></label>
+              <input v-model="editKategoriForm.nama_kategori" type="text" class="form-input" required />
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Warna Simbologi Standar</label>
+              <div class="flex-row-align gap-2">
+                <input v-model="editKategoriForm.warna_default" type="color" class="color-picker-input" />
+                <input v-model="editKategoriForm.warna_default" type="text" class="form-input font-mono" />
+              </div>
+            </div>
+            <div class="form-field">
+              <label class="form-label">OPD Pembina Data</label>
+              <select v-model="editKategoriForm.opd_id" class="form-input">
+                <option v-for="o in opdList" :key="o.id" :value="o.id">
+                  {{ o.nama_opd }} ({{ o.kode_opd }})
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label class="form-label">Deskripsi / Ruang Lingkup Tema</label>
+            <textarea v-model="editKategoriForm.deskripsi" class="form-textarea" rows="3"></textarea>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-modal-cancel" @click="isEditKategoriModalOpen = false">Batal</button>
+            <button type="submit" class="btn-modal-submit">
+              <CheckCircle2 :size="15" />
+              <span>Simpan Perubahan</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
   </div>
 </template>
 
@@ -3355,6 +4413,56 @@ onMounted(() => {
 .btn-modal-submit:hover {
   background: #0369a1;
   box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
+}
+
+.flex-row-align {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.color-preview-box {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.theme-color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.color-swatch-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.color-picker-input {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.cell-desc-table {
+  display: block;
+  max-width: 280px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #94a3b8;
+  font-size: 11px;
 }
 
 @media (max-width: 1024px) {

@@ -12,7 +12,9 @@ import type {
   DatasetItem,
   DataDasarVersion,
   ShpValidationReport,
-  UserItem
+  UserItem,
+  OpdItem,
+  KategoriSpasialItem
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/spasials';
@@ -298,8 +300,114 @@ export const sigApi = {
     });
   },
 
+  async updateUser(payload: {
+    id: number;
+    nama_lengkap?: string;
+    email?: string;
+    role?: string;
+    opd?: string;
+    kode_opd?: string;
+  }): Promise<{ data: UserItem; message: string }> {
+    return request('/admin/users/update', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
   async deleteUser(id: number): Promise<{ data: { id: number }; message: string }> {
     return request('/admin/users/delete', {
+      method: 'POST',
+      body: JSON.stringify({ id })
+    });
+  },
+
+  // ==========================================
+  // MASTER DATA: OPD (PERANGKAT DAERAH)
+  // ==========================================
+
+  async getOpds(): Promise<{ data: OpdItem[]; message: string }> {
+    return request('/admin/opd');
+  },
+
+  async createOpd(payload: {
+    kode_opd: string;
+    nama_opd: string;
+    singkatan?: string;
+    email?: string;
+    telepon?: string;
+    alamat?: string;
+    pic?: string;
+  }): Promise<{ data: OpdItem; message: string }> {
+    return request('/admin/opd/create', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  async updateOpd(payload: {
+    id: number;
+    nama_opd?: string;
+    singkatan?: string;
+    email?: string;
+    telepon?: string;
+    alamat?: string;
+    pic?: string;
+    is_active?: boolean;
+  }): Promise<{ data: OpdItem; message: string }> {
+    return request('/admin/opd/update', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  async deleteOpd(id: number): Promise<{ data: { id: number }; message: string }> {
+    return request('/admin/opd/delete', {
+      method: 'POST',
+      body: JSON.stringify({ id })
+    });
+  },
+
+  // ==========================================
+  // MASTER DATA: KATEGORI SPASIAL TEMATIK
+  // ==========================================
+
+  async getKategoriAdmin(): Promise<{ data: KategoriSpasialItem[]; message: string }> {
+    return request('/admin/kategori');
+  },
+
+  async createKategori(payload: {
+    kode?: string;
+    nama_kategori: string;
+    deskripsi?: string;
+    icon?: string;
+    warna_default?: string;
+    opd_id?: number;
+    nama_opd?: string;
+  }): Promise<{ data: KategoriSpasialItem; message: string }> {
+    return request('/admin/kategori/create', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  async updateKategori(payload: {
+    id: number;
+    nama_kategori?: string;
+    deskripsi?: string;
+    icon?: string;
+    warna_default?: string;
+    opd_id?: number;
+    nama_opd?: string;
+    is_active?: boolean;
+  }): Promise<{ data: KategoriSpasialItem; message: string }> {
+    return request('/admin/kategori/update', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  async deleteKategori(id: number): Promise<{ data: { id: number }; message: string }> {
+    return request('/admin/kategori/delete', {
       method: 'POST',
       body: JSON.stringify({ id })
     });
