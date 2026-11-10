@@ -11,6 +11,14 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 
 ---
 
+## [0.8.0] - 2026-11-10
+
+### Keterangan Perubahan
+- Implementasi Lambang Resmi Kabupaten Minahasa Selatan sebagai identitas visual logo dan icon kit aplikasi
+- feat(branding): implementasikan lambang resmi Kabupaten Minahasa Selatan sebagai logo aplikasi dan icon kit (ecc7fbd)
+
+---
+
 ## [0.7.0] - 2026-11-10
 
 ### Keterangan Perubahan
@@ -157,6 +165,7 @@ dan proyek ini menerapkan [Semantic Versioning (SemVer)](https://semver.org/lang
 - Workflow otomasi CI/CD & GitHub Releases (`.github/workflows/release.yml`, `.github/workflows/ci.yml`).
 - Skema dasar basis data spasial (tabel batas administrasi kecamatan/desa dan objek tematik).
 - Konfigurasi `.gitignore` menyeluruh untuk CI4, Vue 3, GIS, dan cPanel.
+
 
 
 
