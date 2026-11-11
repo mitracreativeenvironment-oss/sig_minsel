@@ -16,7 +16,7 @@ class CorsFilter implements FilterInterface
     public function before(RequestInterface $request, $arguments = null)
     {
         // Tangani preflight OPTIONS request langsung
-        if ($request->getMethod() === 'options') {
+        if (strtoupper($request->getMethod()) === 'OPTIONS') {
             $response = service('response');
             $this->addCorsHeaders($response);
             $response->setStatusCode(204);
@@ -31,11 +31,15 @@ class CorsFilter implements FilterInterface
 
     private function addCorsHeaders(ResponseInterface $response): void
     {
-        $origin = $_SERVER['HTTP_ORIGIN'] ?? '*';
+        $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
         $frontendUrl = env('app.frontendURL', config('App')->frontendURL ?? 'http://localhost:5173');
 
-        // Allow configured frontend origin or wildcard
-        $response->setHeader('Access-Control-Allow-Origin', $origin === $frontendUrl ? $frontendUrl : '*');
+        // Allow requesting origin if present, or frontend URL
+        if (!empty($origin)) {
+            $response->setHeader('Access-Control-Allow-Origin', $origin);
+        } else {
+            $response->setHeader('Access-Control-Allow-Origin', $frontendUrl);
+        }
         $response->setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-TOKEN, X-Requested-With, Accept, Origin');
         $response->setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
         $response->setHeader('Access-Control-Allow-Credentials', 'true');

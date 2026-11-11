@@ -228,9 +228,16 @@ function setViewMode(mode: 'grid' | 'list') {
 const uploadTipe = ref<'KABUPATEN' | 'KECAMATAN' | 'DESA'>('KECAMATAN');
 const uploadSumber = ref('Badan Informasi Geospasial / Bagian Tapem Setda');
 const uploadTahun = ref(2026);
-const uploadFileName = ref('batas_17_kecamatan_minsel_2026.zip');
+const uploadFileName = ref('');
+const serverZipFiles = ref<Array<{ filename: string; size_human: string; updated_at: string }>>([]);
 const isUploading = ref(false);
 const lastValidationReport = ref<any>(null);
+
+function useServerZipFile(filename: string) {
+  dataDasarFile.value = null;
+  uploadFileName.value = filename;
+  notify.info('Berkas Dipilih', `Berkas server "${filename}" dipilih untuk registrasi & validasi.`);
+}
 
 // Search & Filter State for Datasets (Multi-Kriteria)
 const searchQuery = ref('');
@@ -1744,6 +1751,10 @@ async function loadDashboardData() {
     }
     if (ddRes.status === 'fulfilled') {
       dataDasarList.value = ddRes.value.data.versions;
+      serverZipFiles.value = (ddRes.value.data as any).server_zip_files || [];
+      if (serverZipFiles.value.length > 0 && !uploadFileName.value) {
+        uploadFileName.value = serverZipFiles.value[0].filename;
+      }
     }
     if (usersRes.status === 'fulfilled') {
       usersList.value = usersRes.value.data;
@@ -3283,8 +3294,26 @@ onMounted(() => {
                     <span>Pilih Berkas ZIP</span>
                   </button>
                   <span class="file-chosen-text" :title="uploadFileName">
-                    {{ uploadFileName }}
+                    {{ uploadFileName || 'Belum ada berkas dipilih' }}
                   </span>
+                </div>
+
+                <!-- Server Zip Detection Banner -->
+                <div v-if="serverZipFiles.length > 0" class="server-zip-hint">
+                  <span class="sz-label">📦 Berkas ZIP di Server (backend/writable/uploads):</span>
+                  <div class="sz-list">
+                    <button
+                      v-for="sz in serverZipFiles"
+                      :key="sz.filename"
+                      type="button"
+                      class="sz-badge-btn"
+                      :class="{ active: uploadFileName === sz.filename && !dataDasarFile }"
+                      @click="useServerZipFile(sz.filename)"
+                    >
+                      <span>📁 {{ sz.filename }} ({{ sz.size_human }})</span>
+                      <span class="sz-tag">{{ uploadFileName === sz.filename && !dataDasarFile ? 'Dipilih' : 'Gunakan' }}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -8592,6 +8621,57 @@ onMounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 250px;
+}
+
+.server-zip-hint {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sz-label {
+  font-size: 0.72rem;
+  color: var(--theme-text-muted, #a1a1aa);
+  font-weight: 500;
+}
+
+.sz-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sz-badge-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--theme-card-bg, #18181b);
+  border: 1px solid var(--theme-border, rgba(255, 255, 255, 0.12));
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: var(--theme-text-main, #f4f4f5);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sz-badge-btn:hover, .sz-badge-btn.active {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  color: #38bdf8;
+}
+
+.sz-tag {
+  font-size: 0.65rem;
+  padding: 1px 5px;
+  background: rgba(56, 189, 248, 0.2);
+  border-radius: 3px;
+  font-weight: 600;
 }
 
 .inline-file-badge {

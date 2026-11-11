@@ -24,8 +24,12 @@ class Home extends BaseController
     /**
      * Redirect fallback / 404 non-API ke Frontend
      */
-    public function redirectFrontend(): RedirectResponse
+    public function redirectFrontend(): \CodeIgniter\HTTP\ResponseInterface
     {
+        if (strtoupper($this->request->getMethod()) === 'OPTIONS') {
+            return $this->response->setStatusCode(204);
+        }
+
         $frontendUrl = env('app.frontendURL', config('App')->frontendURL ?? 'http://localhost:5173');
         return redirect()->to($frontendUrl);
     }

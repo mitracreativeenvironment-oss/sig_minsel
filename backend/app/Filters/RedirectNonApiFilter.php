@@ -18,6 +18,11 @@ class RedirectNonApiFilter implements FilterInterface
 {
     public function before(RequestInterface $request, $arguments = null)
     {
+        // Jangan pernah redirect request CORS preflight (OPTIONS)
+        if (strtoupper($request->getMethod()) === 'OPTIONS') {
+            return;
+        }
+
         $uri = $request->getUri();
         $path = trim($uri->getPath(), '/');
 

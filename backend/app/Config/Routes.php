@@ -9,13 +9,28 @@ use CodeIgniter\Router\RouteCollection;
  * @var RouteCollection $routes
  */
 
-// 1. Akses Root & Non-API: Langsung Dialihkan (Redirect) ke Frontend
+// 1. Tangani Preflight OPTIONS untuk semua endpoint (CORS) langsung dengan respons 204
+$routes->options('(:any)', static function () {
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    $frontendUrl = env('app.frontendURL', config('App')->frontendURL ?? 'http://localhost:5173');
+    $allowOrigin = !empty($origin) ? $origin : $frontendUrl;
+
+    return service('response')
+        ->setStatusCode(204)
+        ->setHeader('Access-Control-Allow-Origin', $allowOrigin)
+        ->setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-TOKEN, X-Requested-With, Accept, Origin')
+        ->setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS')
+        ->setHeader('Access-Control-Allow-Credentials', 'true')
+        ->setHeader('Access-Control-Max-Age', '86400');
+});
+
+// 2. Akses Root & Non-API: Langsung Dialihkan (Redirect) ke Frontend
 $routes->get('/', 'Home::index');
 
-// 2. Fallback 404 Non-API: Semua URL selain 'spasials' langsung dialihkan ke Frontend
+// 3. Fallback 404 Non-API: Semua URL selain 'spasials' langsung dialihkan ke Frontend
 $routes->set404Override('App\Controllers\Home::redirectFrontend');
 
-// 3. Grup Endpoint Layanan Data Spasial Resmi (Prefix: 'spasials')
+// 4. Grup Endpoint Layanan Data Spasial Resmi (Prefix: 'spasials')
 // Seluruh endpoint ini dilindungi oleh ApiTokenFilter
 $routes->group('spasials', static function ($routes) {
     // Health check & Token Verification / Handshake

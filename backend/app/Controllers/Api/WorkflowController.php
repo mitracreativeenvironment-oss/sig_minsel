@@ -971,6 +971,26 @@ class WorkflowController extends BaseApiController
     public function dataDasar(): ResponseInterface
     {
         $versions = self::getStorageDataDasar();
+
+        // Pindai berkas ZIP yang siap diimpor di writable/uploads/
+        $serverZipFiles = [];
+        $uploadsDir = WRITEPATH . 'uploads/';
+        if (is_dir($uploadsDir)) {
+            $files = glob($uploadsDir . '*.zip');
+            if ($files) {
+                foreach ($files as $filePath) {
+                    $basename = basename($filePath);
+                    $size = filesize($filePath);
+                    $serverZipFiles[] = [
+                        'filename'   => $basename,
+                        'size_bytes' => $size,
+                        'size_human' => $size > 1048576 ? round($size / 1048576, 2) . ' MB' : round($size / 1024, 1) . ' KB',
+                        'updated_at' => date('Y-m-d H:i:s', filemtime($filePath))
+                    ];
+                }
+            }
+        }
+
         return $this->respondSuccess([
             'versions' => $versions,
             'active_versions' => [
@@ -978,7 +998,8 @@ class WorkflowController extends BaseApiController
                 'kecamatan' => '2026.1-RESMI',
                 'desa'      => '2026.1-RESMI'
             ],
-            'crs_wajib' => 'EPSG:4326 (WGS84 Latitude/Longitude)'
+            'crs_wajib' => 'EPSG:4326 (WGS84 Latitude/Longitude)',
+            'server_zip_files' => $serverZipFiles
         ], 'Data dasar batas administrasi geospasial berhasil diambil.');
     }
 
@@ -1024,6 +1045,26 @@ class WorkflowController extends BaseApiController
                     @unlink($fullPath);
                 }
                 return $this->respondError($realInspection['error'] ?? 'Validasi shapefile batas wilayah gagal.', 400);
+            }
+        } elseif (!empty($namaFile)) {
+            // Cek apakah berkas sudah berada di WRITEPATH uploads/ (misal ADM_MINSEL.zip yang ditaruh manual)
+            $existingPath = WRITEPATH . 'uploads/' . basename($namaFile);
+            if (file_exists($existingPath)) {
+                $uploadDir = WRITEPATH . 'uploads/data_dasar/';
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0777, true);
+                }
+                $savedName = 'data_dasar_' . strtolower($tipeData) . '_' . date('Ymd_His') . '_' . basename($namaFile);
+                @copy($existingPath, $uploadDir . $savedName);
+                $fullPath = $uploadDir . $savedName;
+
+                $realInspection = self::inspectShapefileZip($fullPath);
+                if (!$realInspection['valid']) {
+                    if (file_exists($fullPath)) {
+                        @unlink($fullPath);
+                    }
+                    return $this->respondError($realInspection['error'] ?? 'Validasi shapefile batas wilayah gagal.', 400);
+                }
             }
         }
 

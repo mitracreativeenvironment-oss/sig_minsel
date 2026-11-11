@@ -19,7 +19,7 @@ class ApiTokenFilter implements FilterInterface
     public function before(RequestInterface $request, $arguments = null)
     {
         // Berikan izin lewat untuk browser CORS preflight (OPTIONS method)
-        if ($request->getMethod() === 'options') {
+        if (strtoupper($request->getMethod()) === 'OPTIONS') {
             return;
         }
 

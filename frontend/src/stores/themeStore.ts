@@ -54,3 +54,4 @@ export const useThemeStore = defineStore('theme', () => {
     init
   };
 });
+
