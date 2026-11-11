@@ -40,20 +40,20 @@ export function useDashboardCharts({
   dataDasarList,
   currentUser
 }: DashboardChartsParams) {
-  // Palet Warna Standar GeoMinsel
+  // Palet Warna Elegan Hitam Putih (Monochrome Luxe)
   const colors = {
-    sky: '#0284c7',
-    skyLight: '#38bdf8',
-    cyan: '#06b6d4',
-    emerald: '#10b981',
-    emeraldLight: '#34d399',
-    amber: '#f59e0b',
-    amberLight: '#fbbf24',
-    indigo: '#6366f1',
-    violet: '#8b5cf6',
-    rose: '#f43f5e',
-    slate: '#64748b',
-    slateDark: '#334155'
+    sky: '#f4f4f5',        // Platinum White
+    skyLight: '#ffffff',   // Pure White
+    cyan: '#d4d4d8',       // Light Silver
+    emerald: '#e4e4e7',    // Silver Zinc
+    emeraldLight: '#fdfdfd',
+    amber: '#a1a1aa',      // Metallic Grey
+    amberLight: '#cbd5e1',
+    indigo: '#71717a',     // Medium Zinc
+    violet: '#52525b',     // Deep Zinc
+    rose: '#3f3f46',       // Charcoal
+    slate: '#71717a',      // Muted Slate
+    slateDark: '#27272a'   // Obsidian Dark
   };
 
   // ==============================================================

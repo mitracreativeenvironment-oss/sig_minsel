@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import { Chart, registerables } from 'chart.js';
+import { useThemeStore } from '../stores/themeStore';
 
 Chart.register(...registerables);
 
@@ -36,6 +37,7 @@ const props = withDefaults(defineProps<Props>(), {
   showLegend: true
 });
 
+const themeStore = useThemeStore();
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 let chartInstance: Chart | null = null;
 
@@ -46,6 +48,7 @@ const hasData = computed(() => {
 
 function getDefaultOptions() {
   const isPieOrDoughnut = ['doughnut', 'pie', 'polarArea'].includes(props.type);
+  const isDark = themeStore.isDark;
 
   return {
     responsive: true,
@@ -59,11 +62,11 @@ function getDefaultOptions() {
         display: props.showLegend,
         position: isPieOrDoughnut ? 'right' : 'top',
         labels: {
-          color: '#cbd5e1',
+          color: isDark ? '#e4e4e7' : '#18181b',
           font: {
             family: "'Plus Jakarta Sans', system-ui, sans-serif",
             size: 11,
-            weight: '500'
+            weight: '600'
           },
           boxWidth: 12,
           boxHeight: 12,
@@ -71,17 +74,17 @@ function getDefaultOptions() {
         }
       },
       tooltip: {
-        backgroundColor: 'rgba(15, 23, 42, 0.92)',
-        titleColor: '#38bdf8',
-        bodyColor: '#f8fafc',
-        borderColor: 'rgba(56, 189, 248, 0.25)',
+        backgroundColor: isDark ? 'rgba(9, 9, 11, 0.95)' : 'rgba(255, 255, 255, 0.97)',
+        titleColor: isDark ? '#ffffff' : '#09090b',
+        bodyColor: isDark ? '#d4d4d8' : '#27272a',
+        borderColor: isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.15)',
         borderWidth: 1,
         padding: 10,
         boxPadding: 4,
         cornerRadius: 8,
         titleFont: {
           family: "'Plus Jakarta Sans', system-ui, sans-serif",
-          weight: '600',
+          weight: '700',
           size: 12
         },
         bodyFont: {
@@ -95,14 +98,15 @@ function getDefaultOptions() {
       : {
           x: {
             grid: {
-              color: 'rgba(255, 255, 255, 0.05)',
+              color: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)',
               drawBorder: false
             },
             ticks: {
-              color: '#94a3b8',
+              color: isDark ? '#a1a1aa' : '#52525b',
               font: {
                 family: "'Plus Jakarta Sans', system-ui, sans-serif",
-                size: 10
+                size: 10,
+                weight: '500'
               },
               maxRotation: 35,
               minRotation: 0
@@ -111,15 +115,16 @@ function getDefaultOptions() {
           y: {
             beginAtZero: true,
             grid: {
-              color: 'rgba(255, 255, 255, 0.05)',
+              color: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)',
               drawBorder: false
             },
             ticks: {
-              color: '#94a3b8',
+              color: isDark ? '#a1a1aa' : '#52525b',
               precision: 0,
               font: {
                 family: "'Plus Jakarta Sans', system-ui, sans-serif",
-                size: 10
+                size: 10,
+                weight: '500'
               }
             }
           }
@@ -176,6 +181,13 @@ watch(
   }
 );
 
+watch(
+  () => themeStore.theme,
+  () => {
+    initChart();
+  }
+);
+
 onMounted(() => {
   initChart();
 });
@@ -209,10 +221,10 @@ onUnmounted(() => {
 
 <style scoped>
 .stat-chart-card {
-  background: rgba(15, 23, 42, 0.7);
+  background: var(--theme-bg-surface-primary, rgba(15, 23, 42, 0.7));
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--theme-border-medium, rgba(255, 255, 255, 0.08));
   border-radius: 14px;
   padding: 1.15rem;
   display: flex;
@@ -220,11 +232,12 @@ onUnmounted(() => {
   transition: all 0.25s ease;
   position: relative;
   overflow: hidden;
+  box-shadow: var(--theme-shadow-sm);
 }
 
 .stat-chart-card:hover {
-  border-color: rgba(56, 189, 248, 0.25);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35);
+  border-color: var(--theme-border-strong);
+  box-shadow: var(--theme-shadow-md);
 }
 
 .stat-chart-header {
@@ -244,13 +257,13 @@ onUnmounted(() => {
 .stat-chart-title {
   font-size: 0.88rem;
   font-weight: 700;
-  color: #f1f5f9;
+  color: var(--theme-text-primary, #f1f5f9);
   letter-spacing: -0.01em;
 }
 
 .stat-chart-sub {
   font-size: 0.73rem;
-  color: #94a3b8;
+  color: var(--theme-text-muted, #94a3b8);
   line-height: 1.35;
 }
 
@@ -261,9 +274,9 @@ onUnmounted(() => {
   border-radius: 9999px;
   font-size: 0.65rem;
   font-weight: 600;
-  background: rgba(56, 189, 248, 0.12);
-  color: #38bdf8;
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  background: var(--theme-badge-bg, rgba(255, 255, 255, 0.1));
+  color: var(--theme-badge-text, #ffffff);
+  border: 1px solid var(--theme-badge-border, rgba(255, 255, 255, 0.2));
   white-space: nowrap;
 }
 

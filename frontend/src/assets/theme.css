@@ -1,0 +1,713 @@
+/**
+ * GEOMINSEL MONOCHROME LUXE THEME SYSTEM (HITAM PUTIH ELEGAN)
+ * Mendukung Mode Gelap (Noir / Obsidian) dan Mode Terang (Minimalis / Monokrom Alabaster)
+ */
+
+/* ============================================================== */
+/* 1. CSS VARIABLES (SEMANTIC DESIGN TOKENS)                      */
+/* ============================================================== */
+
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Latar Belakang & Permukaan */
+  --theme-bg-canvas: #09090b;
+  --theme-bg-surface-primary: #121216;
+  --theme-bg-surface-secondary: #18181f;
+  --theme-bg-surface-elevated: #1e1e26;
+  --theme-bg-card: rgba(24, 24, 31, 0.85);
+  --theme-bg-glass: rgba(18, 18, 22, 0.88);
+  --theme-bg-header: rgba(15, 15, 20, 0.95);
+  --theme-bg-input: #15151c;
+  --theme-bg-dropdown: #1a1a24;
+  --theme-bg-hover: rgba(255, 255, 255, 0.07);
+  --theme-bg-active: rgba(255, 255, 255, 0.14);
+
+  /* Garis Batas & Separator (Subtle Metallic Frost) */
+  --theme-border-subtle: rgba(255, 255, 255, 0.08);
+  --theme-border-medium: rgba(255, 255, 255, 0.16);
+  --theme-border-strong: rgba(255, 255, 255, 0.28);
+  --theme-border-focus: #ffffff;
+
+  /* Tipografi Hitam Putih Elegan */
+  --theme-text-primary: #ffffff;
+  --theme-text-secondary: #e4e4e7;
+  --theme-text-muted: #a1a1aa;
+  --theme-text-dim: #71717a;
+  --theme-text-inverse: #09090b;
+
+  /* Aksen Monokrom Utama */
+  --theme-accent-solid: #ffffff;
+  --theme-accent-text: #09090b;
+  --theme-accent-subtle: rgba(255, 255, 255, 0.1);
+  --theme-accent-hover: #e4e4e7;
+
+  /* Tag & Status Elegan Monokrom */
+  --theme-badge-bg: rgba(255, 255, 255, 0.1);
+  --theme-badge-text: #f4f4f5;
+  --theme-badge-border: rgba(255, 255, 255, 0.18);
+
+  /* Bayangan & Efek Kedalaman */
+  --theme-shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.4);
+  --theme-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --theme-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.65);
+  --theme-glow: 0 0 20px rgba(255, 255, 255, 0.12);
+
+  /* Scrollbar */
+  --theme-scrollbar-track: #09090b;
+  --theme-scrollbar-thumb: #27272a;
+  --theme-scrollbar-thumb-hover: #3f3f46;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  /* Latar Belakang & Permukaan */
+  --theme-bg-canvas: #f4f4f5;
+  --theme-bg-surface-primary: #ffffff;
+  --theme-bg-surface-secondary: #fafafa;
+  --theme-bg-surface-elevated: #ffffff;
+  --theme-bg-card: rgba(255, 255, 255, 0.95);
+  --theme-bg-glass: rgba(255, 255, 255, 0.92);
+  --theme-bg-header: rgba(255, 255, 255, 0.98);
+  --theme-bg-input: #ffffff;
+  --theme-bg-dropdown: #ffffff;
+  --theme-bg-hover: rgba(0, 0, 0, 0.05);
+  --theme-bg-active: rgba(0, 0, 0, 0.1);
+
+  /* Garis Batas & Separator (Refined Slate / Charcoal) */
+  --theme-border-subtle: rgba(0, 0, 0, 0.08);
+  --theme-border-medium: rgba(0, 0, 0, 0.15);
+  --theme-border-strong: rgba(0, 0, 0, 0.28);
+  --theme-border-focus: #09090b;
+
+  /* Tipografi Hitam Putih Elegan */
+  --theme-text-primary: #09090b;
+  --theme-text-secondary: #18181b;
+  --theme-text-muted: #52525b;
+  --theme-text-dim: #71717a;
+  --theme-text-inverse: #ffffff;
+
+  /* Aksen Monokrom Utama */
+  --theme-accent-solid: #09090b;
+  --theme-accent-text: #ffffff;
+  --theme-accent-subtle: rgba(0, 0, 0, 0.06);
+  --theme-accent-hover: #27272a;
+
+  /* Tag & Status Elegan Monokrom */
+  --theme-badge-bg: rgba(0, 0, 0, 0.06);
+  --theme-badge-text: #18181b;
+  --theme-badge-border: rgba(0, 0, 0, 0.15);
+
+  /* Bayangan & Efek Kedalaman */
+  --theme-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --theme-shadow-md: 0 6px 18px rgba(0, 0, 0, 0.08);
+  --theme-shadow-lg: 0 12px 30px rgba(0, 0, 0, 0.12);
+  --theme-glow: 0 0 15px rgba(0, 0, 0, 0.06);
+
+  /* Scrollbar */
+  --theme-scrollbar-track: #f4f4f5;
+  --theme-scrollbar-thumb: #d4d4d8;
+  --theme-scrollbar-thumb-hover: #a1a1aa;
+}
+
+/* ============================================================== */
+/* 2. BASE STYLING & TRANSITIONS                                  */
+/* ============================================================== */
+
+html, body {
+  background-color: var(--theme-bg-canvas);
+  color: var(--theme-text-primary);
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--theme-scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--theme-scrollbar-thumb);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-scrollbar-thumb-hover);
+}
+
+/* ============================================================== */
+/* 3. TOMBOL TOGGLE THEME ELEGAN (LIGHT / DARK SWITCHER)          */
+/* ============================================================== */
+
+.btn-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--theme-bg-surface-secondary);
+  border: 1px solid var(--theme-border-medium);
+  color: var(--theme-text-primary);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--theme-shadow-sm);
+  user-select: none;
+}
+
+.btn-theme-toggle:hover {
+  background: var(--theme-bg-hover);
+  border-color: var(--theme-border-strong);
+  transform: translateY(-1px);
+}
+
+.btn-theme-toggle:active {
+  transform: translateY(0);
+}
+
+.icon-sun {
+  color: #fbbf24;
+  animation: sunSpin 0.3s ease-out;
+}
+
+.icon-moon {
+  color: #a1a1aa;
+  animation: moonFade 0.3s ease-out;
+}
+
+[data-theme="light"] .icon-moon {
+  color: #18181b;
+}
+
+@keyframes sunSpin {
+  0% { transform: rotate(-45deg) scale(0.7); opacity: 0; }
+  100% { transform: rotate(0deg) scale(1); opacity: 1; }
+}
+
+@keyframes moonFade {
+  0% { transform: scale(0.7); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ============================================================== */
+/* 4. OVERRIDE: TOP NAVBAR (NAVBAR UTAMA GEOPORTAL)               */
+/* ============================================================== */
+
+.top-nav {
+  background: var(--theme-bg-header) !important;
+  border-bottom: 1px solid var(--theme-border-medium) !important;
+  color: var(--theme-text-primary) !important;
+  box-shadow: var(--theme-shadow-sm) !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+.brand-title {
+  color: var(--theme-text-primary) !important;
+  letter-spacing: 0.75px !important;
+}
+
+.brand-subtitle {
+  color: var(--theme-text-muted) !important;
+}
+
+.nav-middle {
+  background: var(--theme-bg-surface-secondary) !important;
+  border: 1px solid var(--theme-border-subtle) !important;
+}
+
+.nav-tab-btn {
+  color: var(--theme-text-muted) !important;
+}
+
+.nav-tab-btn:hover {
+  color: var(--theme-text-primary) !important;
+}
+
+.nav-tab-btn.active {
+  background: var(--theme-accent-solid) !important;
+  color: var(--theme-accent-text) !important;
+  box-shadow: var(--theme-shadow-sm) !important;
+}
+
+.badge-scope {
+  background: var(--theme-bg-surface-secondary) !important;
+  border: 1px solid var(--theme-border-medium) !important;
+  color: var(--theme-text-primary) !important;
+}
+
+.badge-auth {
+  background: var(--theme-bg-surface-secondary) !important;
+  border: 1px solid var(--theme-border-medium) !important;
+  color: var(--theme-text-primary) !important;
+}
+
+.btn-login-nav,
+.btn-dash-nav {
+  background: var(--theme-accent-solid) !important;
+  color: var(--theme-accent-text) !important;
+  border: 1px solid var(--theme-border-strong) !important;
+  box-shadow: var(--theme-shadow-sm) !important;
+}
+
+.btn-login-nav:hover,
+.btn-dash-nav:hover {
+  opacity: 0.9 !important;
+  transform: translateY(-1px);
+}
+
+/* ============================================================== */
+/* 5. OVERRIDE: FLOATING SIDEBAR & CONTROLS PADA GEOPORTAL        */
+/* ============================================================== */
+
+.hierarki-filter-card,
+.layer-control-card {
+  background: var(--theme-bg-glass) !important;
+  backdrop-filter: blur(14px) !important;
+  border: 1px solid var(--theme-border-medium) !important;
+  box-shadow: var(--theme-shadow-md) !important;
+  color: var(--theme-text-primary) !important;
+}
+
+.filter-header,
+.control-section {
+  border-bottom: 1px solid var(--theme-border-subtle) !important;
+}
+
+.filter-header {
+  background: var(--theme-bg-surface-secondary) !important;
+}
+
+.title-wrap,
+.section-title,
+.focus-title {
+  color: var(--theme-text-primary) !important;
+}
+
+.filter-label,
+.focus-sub,
+.btn-cat {
+  color: var(--theme-text-muted) !important;
+}
+
+.filter-select,
+.layer-search-field {
+  background: var(--theme-bg-input) !important;
+  border: 1px solid var(--theme-border-medium) !important;
+  color: var(--theme-text-primary) !important;
+}
+
+.filter-select:focus,
+.layer-search-field:focus {
+  border-color: var(--theme-border-focus) !important;
+  outline: none;
+}
+
+.kabupaten-badge {
+  background: var(--theme-bg-surface-secondary) !important;
+  border: 1px solid var(--theme-border-subtle) !important;
+  color: var(--theme-text-primary) !important;
+}
+
+.badge-code {
+  background: var(--theme-accent-solid) !important;
+  color: var(--theme-accent-text) !important;
+}
+
+.badge-name {
+  color: var(--theme-text-primary) !important;
+}
+
+.btn-reset {
+  background: var(--theme-bg-surface-secondary) !important;
+  border: 1px solid var(--theme-border-medium) !important;
+  color: var(--theme-text-primary) !important;
+}
+
+.basemap-btn {
+  background: var(--theme-bg-surface-secondary) !important;
+  border: 1px solid var(--theme-border-subtle) !important;
+  color: var(--theme-text-primary) !important;
+}
+
+.basemap-btn:hover {
+  background: var(--theme-bg-hover) !important;
+  border-color: var(--theme-border-medium) !important;
+}
+
+.basemap-btn.active {
+  background: var(--theme-accent-solid) !important;
+  color: var(--theme-accent-text) !important;
+  border-color: var(--theme-accent-solid) !important;
+}
+
+.basemap-btn.active .btn-label,
+.basemap-btn.active .btn-cat {
+  color: var(--theme-accent-text) !important;
+}
+
+.layer-item-card {
+  background: var(--theme-bg-surface-secondary) !important;
+  border: 1px solid var(--theme-border-subtle) !important;
+  color: var(--theme-text-primary) !important;
+}
+
+.layer-item-card:hover {
+  border-color: var(--theme-border-medium) !important;
+}
+
+.user-location-bar {
+  background: var(--theme-bg-glass) !important;
+  border: 1px solid var(--theme-border-medium) !important;
+  color: var(--theme-text-primary) !important;
+  box-shadow: var(--theme-shadow-md) !important;
+}
+
+/* ============================================================== */
+/* 6. OVERRIDE: DASHBOARD WORKSPACE (HITAM PUTIH ELEGAN)          */
+/* ============================================================== */
+
+.dashboard-shell {
+  background: var(--theme-bg-canvas) !important;
+  color: var(--theme-text-primary) !important;
+}
+
+.dash-topbar {
+  background: var(--theme-bg-header) !important;
+  border-bottom: 1px solid var(--theme-border-medium) !important;
+  color: var(--theme-text-primary) !important;
+  box-shadow: var(--theme-shadow-sm) !important;
+}
+
+.dash-title {
+  color: var(--theme-text-primary) !important;
+}
+
+.dash-sub {
+  color: var(--theme-text-muted) !important;
+}
+
+.role-switcher-wrap {
+  background: var(--theme-bg-surface-secondary) !important;
+  border: 1px solid var(--theme-border-medium) !important;
+}
+
+.switcher-label {
+  color: var(--theme-text-muted) !important;
+}
+
+.role-select {
+  background: transparent !important;
+  color: var(--theme-text-primary) !important;
+  border: none !important;
+}
+
+.user-chip {
+  background: var(--theme-bg-surface-secondary) !important;
+  border: 1px solid var(--theme-border-subtle) !important;
+}
+
+.user-name {
+  color: var(--theme-text-primary) !important;
+}
+
+.user-opd {
+  color: var(--theme-text-muted) !important;
+}
+
+.btn-dash-action {
+  background: var(--theme-bg-surface-secondary) !important;
+  border: 1px solid var(--theme-border-medium) !important;
+  color: var(--theme-text-primary) !important;
+}
+
+.btn-dash-action:hover {
+  background: var(--theme-bg-hover) !important;
+  border-color: var(--theme-border-strong) !important;
+}
+
+.btn-dash-logout {
+  background: var(--theme-bg-surface-secondary) !important;
+  border: 1px solid var(--theme-border-medium) !important;
+  color: var(--theme-text-muted) !important;
+}
+
+.btn-dash-logout:hover {
+  background: var(--theme-accent-solid) !important;
+  color: var(--theme-accent-text) !important;
+}
+
+/* Sidebar Dashboard */
+.dash-sidebar {
+  background: var(--theme-bg-surface-primary) !important;
+  border-right: 1px solid var(--theme-border-medium) !important;
+}
+
+.nav-item {
+  color: var(--theme-text-muted) !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+}
+
+.nav-item:hover {
+  color: var(--theme-text-primary) !important;
+  background: var(--theme-bg-hover) !important;
+}
+
+.nav-item.active {
+  background: var(--theme-accent-solid) !important;
+  color: var(--theme-accent-text) !important;
+  font-weight: 700 !important;
+  box-shadow: var(--theme-shadow-sm) !important;
+}
+
+.dash-content {
+  background: var(--theme-bg-canvas) !important;
+}
+
+.content-title {
+  color: var(--theme-text-primary) !important;
+}
+
+.content-sub {
+  color: var(--theme-text-muted) !important;
+}
+
+/* Cards & Tables */
+.table-card,
+.stat-card-custom,
+.profile-card,
+.profile-mini-metric,
+.bm-grid-card {
+  background: var(--theme-bg-surface-primary) !important;
+  border: 1px solid var(--theme-border-medium) !important;
+  box-shadow: var(--theme-shadow-sm) !important;
+  color: var(--theme-text-primary) !important;
+}
+
+.data-table th {
+  background: var(--theme-bg-surface-secondary) !important;
+  color: var(--theme-text-muted) !important;
+  border-bottom: 1px solid var(--theme-border-medium) !important;
+  font-weight: 700 !important;
+}
+
+.data-table td {
+  border-bottom: 1px solid var(--theme-border-subtle) !important;
+  color: var(--theme-text-primary) !important;
+}
+
+.data-table tr:hover td {
+  background: var(--theme-bg-hover) !important;
+}
+
+.cell-title {
+  color: var(--theme-text-primary) !important;
+}
+
+.cell-meta {
+  color: var(--theme-text-muted) !important;
+}
+
+/* Form Inputs */
+.form-input,
+.form-textarea,
+.search-input-field,
+.filter-select-enhanced {
+  background: var(--theme-bg-input) !important;
+  border: 1px solid var(--theme-border-medium) !important;
+  color: var(--theme-text-primary) !important;
+}
+
+.form-input:focus,
+.form-textarea:focus,
+.search-input-field:focus,
+.filter-select-enhanced:focus {
+  border-color: var(--theme-border-focus) !important;
+  outline: none;
+}
+
+.form-label {
+  color: var(--theme-text-secondary) !important;
+}
+
+/* Modals */
+.modal-backdrop {
+  background: rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: blur(6px) !important;
+}
+
+.modal-card {
+  background: var(--theme-bg-surface-primary) !important;
+  border: 1px solid var(--theme-border-strong) !important;
+  box-shadow: var(--theme-shadow-lg) !important;
+  color: var(--theme-text-primary) !important;
+}
+
+.modal-header {
+  border-bottom: 1px solid var(--theme-border-subtle) !important;
+}
+
+.modal-title {
+  color: var(--theme-text-primary) !important;
+}
+
+.modal-footer {
+  border-top: 1px solid var(--theme-border-subtle) !important;
+}
+
+.btn-modal-cancel {
+  background: var(--theme-bg-surface-secondary) !important;
+  border: 1px solid var(--theme-border-medium) !important;
+  color: var(--theme-text-primary) !important;
+}
+
+.btn-modal-submit,
+.btn-create-dataset,
+.btn-primary-action {
+  background: var(--theme-accent-solid) !important;
+  color: var(--theme-accent-text) !important;
+  border: 1px solid var(--theme-border-strong) !important;
+  font-weight: 700 !important;
+}
+
+.btn-modal-submit:hover:not(:disabled),
+.btn-create-dataset:hover:not(:disabled),
+.btn-primary-action:hover:not(:disabled) {
+  opacity: 0.9 !important;
+  transform: translateY(-1px);
+}
+
+/* Hero Card Profile */
+.profile-hero-card {
+  background: var(--theme-bg-surface-primary) !important;
+  border: 1px solid var(--theme-border-medium) !important;
+}
+
+.hero-name {
+  color: var(--theme-text-primary) !important;
+}
+
+.profile-avatar-large {
+  background: var(--theme-accent-solid) !important;
+  color: var(--theme-accent-text) !important;
+  border: 2px solid var(--theme-border-strong) !important;
+}
+
+.badge-role-hero,
+.badge-role {
+  background: var(--theme-badge-bg) !important;
+  color: var(--theme-badge-text) !important;
+  border: 1px solid var(--theme-badge-border) !important;
+}
+
+/* Status Badges */
+.status-pill.st-published {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: var(--theme-text-primary) !important;
+  border: 1px solid var(--theme-border-medium) !important;
+}
+
+.status-pill.st-draft {
+  background: transparent !important;
+  color: var(--theme-text-muted) !important;
+  border: 1px solid var(--theme-border-subtle) !important;
+}
+
+/* Scope Notice Banner Monokrom */
+.scope-notice-banner {
+  background: var(--theme-bg-surface-secondary) !important;
+  border: 1px solid var(--theme-border-medium) !important;
+}
+
+.scope-notice-title {
+  color: var(--theme-text-primary) !important;
+}
+
+.scope-badge-tag {
+  background: var(--theme-accent-solid) !important;
+  color: var(--theme-accent-text) !important;
+  border: 1px solid var(--theme-border-strong) !important;
+}
+
+/* Auth Modal & Stats Modal Overrides */
+.auth-card,
+.spatial-stats-card {
+  background: var(--theme-bg-surface-primary) !important;
+  border: 1px solid var(--theme-border-strong) !important;
+  color: var(--theme-text-primary) !important;
+  box-shadow: var(--theme-shadow-lg) !important;
+}
+
+.auth-title,
+.stats-modal-title {
+  color: var(--theme-text-primary) !important;
+}
+
+.auth-subtitle,
+.stats-modal-sub {
+  color: var(--theme-text-muted) !important;
+}
+
+.modal-kpi-card {
+  background: var(--theme-bg-surface-secondary) !important;
+  border: 1px solid var(--theme-border-medium) !important;
+}
+
+.kpi-num {
+  color: var(--theme-text-primary) !important;
+}
+
+.kpi-lbl {
+  color: var(--theme-text-muted) !important;
+}
+
+.kpi-badge {
+  background: var(--theme-badge-bg) !important;
+  color: var(--theme-text-primary) !important;
+  border: 1px solid var(--theme-badge-border) !important;
+}
+
+/* User Location Bar adjustments */
+.user-location-bar {
+  background: var(--theme-bg-surface-primary) !important;
+  border: 1px solid var(--theme-border-medium) !important;
+  color: var(--theme-text-primary) !important;
+}
+
+.loc-label {
+  color: var(--theme-text-primary) !important;
+}
+
+.coord-val {
+  color: var(--theme-text-primary) !important;
+}
+
+.loc-status-pill.status-on {
+  background: var(--theme-accent-solid) !important;
+  color: var(--theme-accent-text) !important;
+}
+
+.loc-status-pill.status-off {
+  background: var(--theme-bg-surface-secondary) !important;
+  color: var(--theme-text-muted) !important;
+  border: 1px solid var(--theme-border-subtle) !important;
+}
+
+.btn-recenter {
+  background: var(--theme-bg-surface-secondary) !important;
+  border: 1px solid var(--theme-border-medium) !important;
+  color: var(--theme-text-primary) !important;
+}
+
+.btn-recenter:hover {
+  background: var(--theme-accent-solid) !important;
+  color: var(--theme-accent-text) !important;
+}
+

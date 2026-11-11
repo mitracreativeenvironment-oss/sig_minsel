@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { useWilayahStore } from '../stores/wilayahStore';
 import { useAuthStore } from '../stores/authStore';
-import { ShieldCheck, Compass, LayoutDashboard, BarChart3 } from 'lucide-vue-next';
+import { useThemeStore } from '../stores/themeStore';
+import { ShieldCheck, Compass, LayoutDashboard, BarChart3, Sun, Moon } from 'lucide-vue-next';
 
 const emit = defineEmits<{
   (e: 'navigate', view: 'geoportal' | 'dashboard'): void;
@@ -11,6 +12,7 @@ const emit = defineEmits<{
 
 const wilayahStore = useWilayahStore();
 const authStore = useAuthStore();
+const themeStore = useThemeStore();
 </script>
 
 <template>
@@ -63,6 +65,18 @@ const authStore = useAuthStore();
         <ShieldCheck :size="16" class="icon-shield" />
         <span>API Token Valid</span>
       </div>
+
+      <!-- Theme Switcher (Hitam Putih Elegan: Light / Dark Toggle) -->
+      <button
+        type="button"
+        class="btn-theme-toggle"
+        @click="themeStore.toggleTheme"
+        :title="themeStore.isDark ? 'Ganti ke Mode Terang (Light Mode)' : 'Ganti ke Mode Gelap (Dark Mode)'"
+      >
+        <Sun v-if="themeStore.isDark" :size="15" class="icon-sun" />
+        <Moon v-else :size="15" class="icon-moon" />
+        <span class="theme-text">{{ themeStore.isDark ? 'Gelap' : 'Terang' }}</span>
+      </button>
 
       <!-- Auth Action Button -->
       <button

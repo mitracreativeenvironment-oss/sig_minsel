@@ -11,6 +11,7 @@ import SpatialStatsModal from './components/SpatialStatsModal.vue';
 import { useWilayahStore } from './stores/wilayahStore';
 import { useLayerStore } from './stores/layerStore';
 import { useAuthStore } from './stores/authStore';
+import { useThemeStore } from './stores/themeStore';
 import { sigApi } from './services/api';
 
 type ActiveView = 'geoportal' | 'dashboard';
@@ -21,6 +22,7 @@ const showStatsModal = ref(false);
 const wilayahStore = useWilayahStore();
 const layerStore = useLayerStore();
 const authStore = useAuthStore();
+const themeStore = useThemeStore();
 
 function handleNavigate(view: ActiveView) {
   if (view === 'dashboard' && !authStore.isAuthenticated) {
@@ -36,6 +38,7 @@ function handleLoginSuccess() {
 }
 
 onMounted(async () => {
+  themeStore.init();
   sigApi.trackVisitor({ page: 'geoportal_map' }).catch(() => {});
   authStore.initFromStorage();
   await wilayahStore.init();
@@ -46,7 +49,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="gis-app">
+  <div class="gis-app" :data-theme="themeStore.theme">
     <!-- VIEW 1: GEOPORTAL PETA INTERAKTIF MAPLIBRE (UTAMA) -->
     <div v-if="currentView === 'geoportal'" class="geoportal-layout">
       <TopNavbar

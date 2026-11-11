@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue';
 import { useAuthStore } from '../stores/authStore';
+import { useThemeStore } from '../stores/themeStore';
 import { sigApi } from '../services/api';
 import { notify, confirmDialog, promptNoteDialog, showDetailDialog } from '../services/alert';
 import PaginationControl from '../components/PaginationControl.vue';
@@ -69,7 +70,9 @@ import {
   Mail,
   Briefcase,
   Shield,
-  Save
+  Save,
+  Sun,
+  Moon
 } from 'lucide-vue-next';
 
 const emit = defineEmits<{
@@ -77,6 +80,7 @@ const emit = defineEmits<{
 }>();
 
 const authStore = useAuthStore();
+const themeStore = useThemeStore();
 
 type NavTab = 'overview' | 'datasets' | 'validation' | 'approval' | 'data_dasar' | 'wilayah' | 'basemaps' | 'kategori' | 'opd' | 'users' | 'audit' | 'profile';
 const activeTab = ref<NavTab>('overview');
@@ -2110,6 +2114,18 @@ onMounted(() => {
       </div>
 
       <div class="topbar-right">
+        <!-- Theme Switcher (Hitam Putih Elegan) -->
+        <button
+          type="button"
+          class="btn-theme-toggle"
+          @click="themeStore.toggleTheme"
+          :title="themeStore.isDark ? 'Ganti ke Mode Terang (Light Mode)' : 'Ganti ke Mode Gelap (Dark Mode)'"
+        >
+          <Sun v-if="themeStore.isDark" :size="15" class="icon-sun" />
+          <Moon v-else :size="15" class="icon-moon" />
+          <span class="theme-text-dash">{{ themeStore.isDark ? 'Gelap' : 'Terang' }}</span>
+        </button>
+
         <!-- User Badge & Profile Click -->
         <div
           class="user-chip clickable-chip"
