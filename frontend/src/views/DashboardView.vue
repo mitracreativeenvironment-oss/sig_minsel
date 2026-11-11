@@ -19,7 +19,8 @@ import type {
   VisitorSummary,
   KecamatanAdminItem,
   DesaAdminItem,
-  BaseMapItem
+  BaseMapItem,
+  OverviewStats
 } from '../types';
 import {
   LayoutDashboard,
@@ -92,7 +93,54 @@ const workflowStates = ref<WorkflowState[]>([]);
 const usersList = ref<UserItem[]>([]);
 const opdList = ref<OpdItem[]>([]);
 const kategoriList = ref<KategoriSpasialItem[]>([]);
+const overviewStats = ref<OverviewStats | null>(null);
 const isLoading = ref(false);
+
+// Computed KPI Real Database untuk Overview Eksekutif
+const kpiCakupanWilayah = computed(() => {
+  if (overviewStats.value?.kpi) {
+    return `${overviewStats.value.kpi.total_kecamatan_mapped} / ${overviewStats.value.kpi.total_kecamatan}`;
+  }
+  const count = kecamatanAdminList.value.length || 17;
+  return `${count} / ${count}`;
+});
+
+const kpiCakupanPersen = computed(() => {
+  return overviewStats.value?.kpi?.cakupan_persen || 100;
+});
+
+const kpiTotalDesa = computed(() => {
+  if (overviewStats.value?.kpi) {
+    return overviewStats.value.kpi.total_desa;
+  }
+  return desaAdminList.value.length || 177;
+});
+
+const kpiDesaRincian = computed(() => {
+  if (overviewStats.value?.kpi) {
+    return `${overviewStats.value.kpi.total_desa_murni} Desa dan ${overviewStats.value.kpi.total_kelurahan} Kelurahan binaan`;
+  }
+  if (desaAdminList.value.length > 0) {
+    const d = desaAdminList.value.filter((x) => (x.tipe || '').toUpperCase() === 'DESA').length;
+    const k = desaAdminList.value.filter((x) => (x.tipe || '').toUpperCase() === 'KELURAHAN').length;
+    return `${d} Desa dan ${k} Kelurahan binaan`;
+  }
+  return '166 Desa dan 11 Kelurahan binaan';
+});
+
+const kpiTotalKategori = computed(() => {
+  if (overviewStats.value?.kpi) {
+    return overviewStats.value.kpi.total_kategori;
+  }
+  return kategoriList.value.length || 28;
+});
+
+const kpiTotalWorkflowStages = computed(() => {
+  if (overviewStats.value?.kpi) {
+    return overviewStats.value.kpi.total_workflow_stages;
+  }
+  return workflowStates.value.length || 12;
+});
 
 // Wilayah CRUD State (Kecamatan & Desa)
 const subTabWilayah = ref<'kecamatan' | 'desa'>('kecamatan');
@@ -207,7 +255,8 @@ const {
   visitorStats,
   basemapsAdminList,
   dataDasarList,
-  currentUser: computed(() => authStore.user)
+  currentUser: computed(() => authStore.user),
+  overviewStats
 });
 
 // View Mode State with LocalStorage Persistence
@@ -1729,7 +1778,7 @@ async function loadDashboardData() {
   try {
     sigApi.trackVisitor({ page: 'dashboard' }).catch(() => {});
 
-    const [wfRes, dsRes, ddRes, usersRes, opdRes, katRes, logsRes, visitorRes, kecRes, desaRes, basemapsRes] = await Promise.allSettled([
+    const [wfRes, dsRes, ddRes, usersRes, opdRes, katRes, logsRes, visitorRes, kecRes, desaRes, basemapsRes, overviewRes] = await Promise.allSettled([
       sigApi.getWorkflowStates(),
       sigApi.getWorkflowDatasets(),
       sigApi.getDataDasar(),
@@ -1740,9 +1789,13 @@ async function loadDashboardData() {
       sigApi.getVisitorSummary(),
       sigApi.getKecamatanAdmin(),
       sigApi.getDesaAdmin(),
-      sigApi.getAdminBasemaps()
+      sigApi.getAdminBasemaps(),
+      sigApi.getOverviewStats()
     ]);
 
+    if (overviewRes.status === 'fulfilled') {
+      overviewStats.value = overviewRes.value.data;
+    }
     if (wfRes.status === 'fulfilled') {
       workflowStates.value = wfRes.value.data;
     }
@@ -2319,8 +2372,8 @@ onMounted(() => {
             <div class="kpi-card">
               <span class="kpi-label">Cakupan Wilayah</span>
               <div class="kpi-val-row">
-                <span class="kpi-val text-blue">17 / 17</span>
-                <span class="kpi-badge badge-green">100% Aktif</span>
+                <span class="kpi-val text-blue">{{ kpiCakupanWilayah }}</span>
+                <span class="kpi-badge badge-green">{{ kpiCakupanPersen }}% Aktif</span>
               </div>
               <span class="kpi-sub">Kecamatan terpetakan dalam SRID:4326</span>
             </div>
@@ -2328,16 +2381,16 @@ onMounted(() => {
             <div class="kpi-card">
               <span class="kpi-label">Desa / Kelurahan</span>
               <div class="kpi-val-row">
-                <span class="kpi-val">177</span>
+                <span class="kpi-val">{{ kpiTotalDesa }}</span>
                 <span class="kpi-badge badge-blue">Terhubung</span>
               </div>
-              <span class="kpi-sub">167 Desa dan 10 Kelurahan binaan</span>
+              <span class="kpi-sub">{{ kpiDesaRincian }}</span>
             </div>
 
             <div class="kpi-card">
               <span class="kpi-label">Katalog Kategori</span>
               <div class="kpi-val-row">
-                <span class="kpi-val text-amber">28</span>
+                <span class="kpi-val text-amber">{{ kpiTotalKategori }}</span>
                 <span class="kpi-badge badge-amber">Standar SDI</span>
               </div>
               <span class="kpi-sub">5 Pilar data tematik daerah</span>
@@ -2346,7 +2399,7 @@ onMounted(() => {
             <div class="kpi-card">
               <span class="kpi-label">Persetujuan Terpusat</span>
               <div class="kpi-val-row">
-                <span class="kpi-val text-emerald">12 Tahap</span>
+                <span class="kpi-val text-emerald">{{ kpiTotalWorkflowStages }} Tahap</span>
                 <span class="kpi-badge badge-green">Terstandar</span>
               </div>
               <span class="kpi-sub">Walidata Bappelitbangda terintegrasi</span>
@@ -3200,7 +3253,7 @@ onMounted(() => {
           <div class="content-header">
             <div>
               <h2 class="content-title">Modul Data Dasar Geospasial (Batas Administrasi)</h2>
-              <p class="content-sub">Khusus Superadmin: Unggah dan aktivasi file ZIP Shapefile resmi batas Kabupaten, 17 Kecamatan, dan 167 Desa/Kelurahan</p>
+              <p class="content-sub">Khusus Superadmin: Unggah dan aktivasi file ZIP Shapefile resmi batas Kabupaten, 17 Kecamatan, dan 177 Desa/Kelurahan</p>
             </div>
           </div>
 
@@ -3236,7 +3289,7 @@ onMounted(() => {
                 <select v-model="uploadTipe" class="form-input-box">
                   <option value="KABUPATEN">Batas Kabupaten Minahasa Selatan (1 Fitur)</option>
                   <option value="KECAMATAN">Batas 17 Kecamatan se-Minsel (17 Fitur)</option>
-                  <option value="DESA">Batas 167 Desa & 10 Kelurahan (177 Fitur)</option>
+                  <option value="DESA">Batas 166 Desa & 11 Kelurahan (177 Fitur)</option>
                 </select>
               </div>
 
@@ -3403,7 +3456,7 @@ onMounted(() => {
           <div class="content-header">
             <div>
               <h2 class="content-title">Manajemen Administrasi Wilayah</h2>
-              <p class="content-sub">Kelola batas hierarki 17 Kecamatan, 167 Desa, dan 10 Kelurahan Kabupaten Minahasa Selatan</p>
+              <p class="content-sub">Kelola batas hierarki 17 Kecamatan, 166 Desa, dan 11 Kelurahan Kabupaten Minahasa Selatan</p>
             </div>
 
             <!-- Controls Cluster -->
@@ -3601,7 +3654,7 @@ onMounted(() => {
                 subtitle="Rasio status pemerintahan desa otonom vs kelurahan perkotaan"
                 type="doughnut"
                 :data="chartWilayahDesaTipe"
-                badge="167 Desa / 10 Kel"
+                badge="166 Desa / 11 Kel"
               />
               <StatChart
                 title="Top 8 Kecamatan dengan Wilayah Terbanyak"

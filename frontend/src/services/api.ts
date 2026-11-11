@@ -19,7 +19,8 @@ import type {
   VisitorSummary,
   KecamatanAdminItem,
   DesaAdminItem,
-  BaseMapItem
+  BaseMapItem,
+  OverviewStats
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/spasials';
@@ -544,6 +545,10 @@ export const sigApi = {
   // ==========================================
   // ANALITIK & STATISTIK PENGUNJUNG GEOPORTAL
   // ==========================================
+
+  async getOverviewStats(): Promise<{ data: OverviewStats; message: string }> {
+    return request('/analytics/overview');
+  },
 
   async getVisitorSummary(): Promise<{ data: VisitorSummary; message: string }> {
     return request('/analytics/summary');

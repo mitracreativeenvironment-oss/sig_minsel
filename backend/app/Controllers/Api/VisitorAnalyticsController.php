@@ -45,7 +45,7 @@ class VisitorAnalyticsController extends BaseApiController
     /**
      * Storage Helper untuk Analitik Pengunjung
      */
-    protected static function getStorageAnalytics(): array
+    public static function getStorageAnalytics(): array
     {
         $file = WRITEPATH . 'visitor_analytics.json';
         if (file_exists($file)) {

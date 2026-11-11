@@ -377,3 +377,48 @@ export interface BaseMapItem {
   is_system?: boolean;
   created_at?: string;
 }
+
+// ==========================================
+// RINGKASAN EKSEKUTIF REAL DATABASE (OVERVIEW)
+// ==========================================
+
+export interface OverviewStats {
+  kpi: {
+    total_kecamatan: number;
+    total_kecamatan_mapped: number;
+    cakupan_persen: number;
+    total_desa: number;
+    total_desa_murni: number;
+    total_kelurahan: number;
+    total_kategori: number;
+    total_pilar: number;
+    total_workflow_stages: number;
+  };
+  geometri: {
+    labels: string[];
+    counts: number[];
+    polygon: number;
+    line: number;
+    point: number;
+    total_objek: number;
+    features: {
+      polygon: number;
+      line: number;
+      point: number;
+      total: number;
+    };
+  };
+  pipeline: {
+    labels: string[];
+    counts: number[];
+    draft: number;
+    validasi: number;
+    approval: number;
+    published: number;
+    total: number;
+  };
+  visitors: {
+    labels: string[];
+    hits: number[];
+  };
+}

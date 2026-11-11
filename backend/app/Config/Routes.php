@@ -98,6 +98,7 @@ $routes->group('spasials', static function ($routes) {
 
     // Modul Analitik & Statistik Pengunjung Geoportal Terintegrasi
     $routes->get('analytics/summary', 'Api\VisitorAnalyticsController::getSummary');
+    $routes->get('analytics/overview', 'Api\WilayahController::overviewStats');
     $routes->post('analytics/track', 'Api\VisitorAnalyticsController::track');
 
     // Modul CRUD Wilayah: Kecamatan, Kelurahan & Desa (Superadmin & Admin)
