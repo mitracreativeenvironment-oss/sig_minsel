@@ -141,6 +141,13 @@ export interface UserProfile {
   permissions: string[];
   token: string;
   logged_at?: string;
+  nip?: string;
+  jabatan?: string;
+  telepon?: string;
+  alamat_kantor?: string;
+  total_datasets?: number;
+  dataset_tayang?: number;
+  dataset_review?: number;
 }
 
 export interface UserItem {
@@ -154,6 +161,10 @@ export interface UserItem {
   kode_opd: string;
   is_active: boolean;
   created_at: string;
+  nip?: string;
+  jabatan?: string;
+  telepon?: string;
+  alamat_kantor?: string;
 }
 
 // ==========================================

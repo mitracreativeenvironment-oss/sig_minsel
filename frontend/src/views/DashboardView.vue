@@ -61,7 +61,15 @@ import {
   Tablet,
   Map as MapIcon,
   Compass,
-  Star
+  Star,
+  User,
+  Lock,
+  Key,
+  Phone,
+  Mail,
+  Briefcase,
+  Shield,
+  Save
 } from 'lucide-vue-next';
 
 const emit = defineEmits<{
@@ -70,7 +78,7 @@ const emit = defineEmits<{
 
 const authStore = useAuthStore();
 
-type NavTab = 'overview' | 'datasets' | 'validation' | 'approval' | 'data_dasar' | 'wilayah' | 'basemaps' | 'kategori' | 'opd' | 'users' | 'audit';
+type NavTab = 'overview' | 'datasets' | 'validation' | 'approval' | 'data_dasar' | 'wilayah' | 'basemaps' | 'kategori' | 'opd' | 'users' | 'audit' | 'profile';
 const activeTab = ref<NavTab>('overview');
 
 // Data State
@@ -181,7 +189,9 @@ const {
   chartUsersByRole,
   chartUsersStatus,
   chartAuditByKategori,
-  chartAuditByAksi
+  chartAuditByAksi,
+  chartProfileDatasetStatus,
+  chartProfileAuditActivities
 } = useDashboardCharts({
   datasets,
   kecamatanAdminList,
@@ -192,7 +202,8 @@ const {
   auditLogs,
   visitorStats,
   basemapsAdminList,
-  dataDasarList
+  dataDasarList,
+  currentUser: computed(() => authStore.user)
 });
 
 // View Mode State with LocalStorage Persistence
@@ -341,12 +352,26 @@ const filteredApprovalDatasets = computed(() => {
     );
 });
 
-// Search & Filter for Users & OPD
+// Search & Filter for Users & OPD (Scoped per OPD for Admin OPD)
 const searchUserQuery = ref('');
 const filterUserRole = ref('');
+
+const scopedUsers = computed(() => {
+  if (authStore.currentRole === 'admin_opd') {
+    const myKode = (authStore.user?.kode_opd || '').toUpperCase();
+    const myOpd = (authStore.user?.opd || '').toLowerCase();
+    return usersList.value.filter((u) => {
+      const matchKode = myKode && u.kode_opd && u.kode_opd.toUpperCase() === myKode;
+      const matchOpd = myOpd && u.opd && u.opd.toLowerCase() === myOpd;
+      return matchKode || matchOpd;
+    });
+  }
+  return usersList.value;
+});
+
 const filteredUsers = computed(() => {
   const q = searchUserQuery.value.trim().toLowerCase();
-  return usersList.value.filter((u) => {
+  return scopedUsers.value.filter((u) => {
     const matchSearch =
       !q ||
       u.nama_lengkap.toLowerCase().includes(q) ||
@@ -530,6 +555,20 @@ function canDeleteDataset(d: DatasetItem): boolean {
 const canManageUsers = computed(() =>
   ['superadmin', 'admin_opd'].includes(authStore.currentRole)
 );
+
+function canManageThisUser(u: UserItem): boolean {
+  if (!canManageUsers.value) return false;
+  if (u.id === 1) return false; // Akun Utama Superadmin Terproteksi
+  if (authStore.currentRole === 'superadmin') return true;
+  if (authStore.currentRole === 'admin_opd') {
+    const myKode = (authStore.user?.kode_opd || '').toUpperCase();
+    const myOpd = (authStore.user?.opd || '').toLowerCase();
+    const matchKode = myKode && u.kode_opd && u.kode_opd.toUpperCase() === myKode;
+    const matchOpd = myOpd && u.opd && u.opd.toLowerCase() === myOpd;
+    return !!(matchKode || matchOpd);
+  }
+  return false;
+}
 
 const canManageOpd = computed(() =>
   ['superadmin', 'admin_gis', 'admin_opd'].includes(authStore.currentRole)
@@ -882,13 +921,14 @@ async function handleDeleteDataDasarWithConfirm(v: DataDasarVersion) {
 
 // User CRUD Handlers
 function openCreateUserModal() {
+  const isOpdAdmin = authStore.currentRole === 'admin_opd';
   newUserForm.value = {
     username: '',
     nama_lengkap: '',
     email: '',
     role: 'operator_opd',
-    opd: authStore.opdLabel || 'Dinas Pekerjaan Umum dan Penataan Ruang',
-    kode_opd: authStore.user?.kode_opd || 'DPUPR'
+    opd: isOpdAdmin ? (authStore.opdLabel || 'Dinas Pekerjaan Umum dan Penataan Ruang') : (opdList.value[0]?.nama_opd || 'Dinas Komunikasi dan Informatika'),
+    kode_opd: isOpdAdmin ? (authStore.user?.kode_opd || 'DPUPR') : (opdList.value[0]?.kode_opd || 'DISKOMINFO')
   };
   isCreateUserModalOpen.value = true;
 }
@@ -899,8 +939,22 @@ async function handleCreateUser() {
     return;
   }
 
+  if (authStore.currentRole === 'admin_opd') {
+    newUserForm.value.opd = authStore.opdLabel;
+    newUserForm.value.kode_opd = authStore.user?.kode_opd || 'DPUPR';
+    if (!['operator_opd', 'admin_opd'].includes(newUserForm.value.role)) {
+      newUserForm.value.role = 'operator_opd';
+    }
+  }
+
   try {
-    const res = await sigApi.createUser(newUserForm.value);
+    const payload = {
+      ...newUserForm.value,
+      caller_role: authStore.currentRole,
+      caller_opd: authStore.user?.opd,
+      caller_kode_opd: authStore.user?.kode_opd
+    };
+    const res = await sigApi.createUser(payload);
     usersList.value.push(res.data);
     isCreateUserModalOpen.value = false;
     notify.success('Pengguna Ditambahkan', res.message || 'Akun pengguna baru berhasil dibuat.');
@@ -910,6 +964,10 @@ async function handleCreateUser() {
 }
 
 async function handleToggleUserStatusWithConfirm(u: UserItem) {
+  if (!canManageThisUser(u)) {
+    notify.error('Akses Ditolak', 'Anda tidak berwenang mengelola pengguna di luar OPD Anda.');
+    return;
+  }
   const actionText = u.is_active ? 'Nonaktifkan' : 'Aktifkan';
   const confirmed = await confirmDialog({
     title: `${actionText} Akun Pengguna?`,
@@ -921,7 +979,11 @@ async function handleToggleUserStatusWithConfirm(u: UserItem) {
   if (!confirmed) return;
 
   try {
-    const res = await sigApi.toggleUserStatus(u.id);
+    const res = await sigApi.toggleUserStatus({
+      id: u.id,
+      caller_role: authStore.currentRole,
+      caller_kode_opd: authStore.user?.kode_opd
+    });
     u.is_active = res.data.is_active;
     notify.success('Status Pengguna Diperbarui', res.message || `Akun ${u.username} berhasil diperbarui.`);
   } catch (e: any) {
@@ -930,6 +992,10 @@ async function handleToggleUserStatusWithConfirm(u: UserItem) {
 }
 
 async function handleDeleteUserWithConfirm(u: UserItem) {
+  if (!canManageThisUser(u)) {
+    notify.error('Akses Ditolak', 'Anda tidak berwenang menghapus pengguna di luar OPD Anda.');
+    return;
+  }
   const confirmed = await confirmDialog({
     title: 'Hapus Akun Pengguna?',
     text: `Akun "${u.username}" (${u.nama_lengkap}) akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.`,
@@ -941,7 +1007,11 @@ async function handleDeleteUserWithConfirm(u: UserItem) {
   if (!confirmed) return;
 
   try {
-    const res = await sigApi.deleteUser(u.id);
+    const res = await sigApi.deleteUser({
+      id: u.id,
+      caller_role: authStore.currentRole,
+      caller_kode_opd: authStore.user?.kode_opd
+    });
     usersList.value = usersList.value.filter((item) => item.id !== u.id);
     notify.success('Pengguna Dihapus', res.message || `Akun "${u.username}" berhasil dihapus.`);
   } catch (e: any) {
@@ -969,6 +1039,10 @@ const editUserForm = ref<{
 });
 
 function openEditUserModal(u: UserItem) {
+  if (!canManageThisUser(u)) {
+    notify.error('Akses Ditolak', 'Anda tidak berwenang mengedit pengguna di luar OPD Anda.');
+    return;
+  }
   editUserForm.value = {
     id: u.id,
     username: u.username,
@@ -983,7 +1057,20 @@ function openEditUserModal(u: UserItem) {
 
 async function handleUpdateUser() {
   try {
-    const res = await sigApi.updateUser(editUserForm.value);
+    if (authStore.currentRole === 'admin_opd') {
+      editUserForm.value.opd = authStore.opdLabel;
+      editUserForm.value.kode_opd = authStore.user?.kode_opd || 'DPUPR';
+      if (!['operator_opd', 'admin_opd'].includes(editUserForm.value.role)) {
+        editUserForm.value.role = 'operator_opd';
+      }
+    }
+    const payload = {
+      ...editUserForm.value,
+      caller_role: authStore.currentRole,
+      caller_opd: authStore.user?.opd,
+      caller_kode_opd: authStore.user?.kode_opd
+    };
+    const res = await sigApi.updateUser(payload);
     const target = usersList.value.find((u) => u.id === editUserForm.value.id);
     if (target) {
       Object.assign(target, res.data);
@@ -992,6 +1079,22 @@ async function handleUpdateUser() {
     notify.success('Pengguna Diperbarui', res.message || 'Data akun pengguna berhasil disimpan.');
   } catch (e: any) {
     notify.error('Gagal Memperbarui Pengguna', e.message);
+  }
+}
+
+function handleSelectNewUserOpd(event: Event) {
+  const targetOpdName = (event.target as HTMLSelectElement).value;
+  const match = opdList.value.find((o) => o.nama_opd === targetOpdName);
+  if (match) {
+    newUserForm.value.kode_opd = match.kode_opd;
+  }
+}
+
+function handleSelectEditUserOpd(event: Event) {
+  const targetOpdName = (event.target as HTMLSelectElement).value;
+  const match = opdList.value.find((o) => o.nama_opd === targetOpdName);
+  if (match) {
+    editUserForm.value.kode_opd = match.kode_opd;
   }
 }
 
@@ -1831,12 +1934,134 @@ function switchRole(role: RoleName) {
   if (!['superadmin', 'admin_gis'].includes(role) && activeTab.value === 'basemaps') {
     activeTab.value = 'overview';
   }
+
+  // Refetch users with new caller scope
+  sigApi.getUsers({
+    caller_role: role,
+    caller_opd: authStore.user?.opd,
+    kode_opd: authStore.user?.kode_opd
+  }).then(res => {
+    usersList.value = res.data;
+  }).catch(() => {});
+
+  // Fetch updated profile
+  authStore.fetchProfile(role).then(() => {
+    syncProfileForm();
+  }).catch(() => {});
+
   const roleObj = authStore.roles.find((r) => r.name === role);
   notify.info(
     'Peran Pengguna Berubah',
     `Kini bertindak sebagai: ${roleObj?.label || role} (${roleObj?.opd || 'Kab. Minahasa Selatan'})`
   );
 }
+
+// ==========================================
+// PROFILE STATE & METHODS
+// ==========================================
+const profileEditForm = ref({
+  nama_lengkap: '',
+  email: '',
+  nip: '',
+  jabatan: '',
+  telepon: '',
+  alamat_kantor: ''
+});
+const isSavingProfile = ref(false);
+
+const passwordForm = ref({
+  current_password: '',
+  new_password: '',
+  confirm_password: ''
+});
+const isChangingPassword = ref(false);
+
+function syncProfileForm() {
+  if (authStore.user) {
+    profileEditForm.value = {
+      nama_lengkap: authStore.user.nama_lengkap || '',
+      email: authStore.user.email || '',
+      nip: authStore.user.nip || ('19840512 200801 1 ' + String(authStore.user.id || 1).padStart(3, '0')),
+      jabatan: authStore.user.jabatan || (authStore.user.role === 'superadmin' ? 'Pranata Komputer Ahli Muda / Administrator Utama' : (authStore.user.role === 'admin_opd' ? 'Kepala Sub Bagian Program & Data' : 'Pengelola Sistem Informasi Geografis')),
+      telepon: authStore.user.telepon || ('0812-4455-' + String((authStore.user.id || 1) * 111).padStart(4, '0')),
+      alamat_kantor: authStore.user.alamat_kantor || 'Jl. Trans Sulawesi, Kompleks Perkantoran Pemerintah Kab. Minahasa Selatan, Pondang, Amurang'
+    };
+  }
+}
+
+watch(
+  () => authStore.user,
+  () => {
+    syncProfileForm();
+  },
+  { immediate: true, deep: true }
+);
+
+watch(activeTab, (tab) => {
+  if (tab === 'profile') {
+    syncProfileForm();
+    authStore.fetchProfile().then(() => syncProfileForm()).catch(() => {});
+  }
+});
+
+async function handleSaveProfile() {
+  if (!profileEditForm.value.nama_lengkap) {
+    notify.error('Input Tidak Lengkap', 'Nama lengkap pengguna wajib diisi!');
+    return;
+  }
+  isSavingProfile.value = true;
+  try {
+    await authStore.updateProfile(profileEditForm.value);
+    notify.success('Profil Diperbarui', 'Data profil pengguna Anda berhasil disimpan ke sistem.');
+  } catch (e: any) {
+    notify.error('Gagal Simpan Profil', e.message || 'Terjadi kesalahan saat menyimpan profil.');
+  } finally {
+    isSavingProfile.value = false;
+  }
+}
+
+async function handleChangePassword() {
+  if (!passwordForm.value.new_password) {
+    notify.error('Input Kosong', 'Kata sandi baru tidak boleh kosong!');
+    return;
+  }
+  if (passwordForm.value.new_password.length < 6) {
+    notify.error('Kata Sandi Lemah', 'Kata sandi baru minimal harus 6 karakter!');
+    return;
+  }
+  if (passwordForm.value.new_password !== passwordForm.value.confirm_password) {
+    notify.error('Konfirmasi Tidak Cocok', 'Kata sandi baru dan konfirmasi kata sandi tidak sama!');
+    return;
+  }
+
+  isChangingPassword.value = true;
+  try {
+    await authStore.updateProfile({
+      password_baru: passwordForm.value.new_password
+    });
+    passwordForm.value = {
+      current_password: '',
+      new_password: '',
+      confirm_password: ''
+    };
+    notify.success('Kata Sandi Diperbarui', 'Kata sandi akun Anda berhasil diperbarui dengan aman.');
+  } catch (e: any) {
+    notify.error('Gagal Ubah Sandi', e.message || 'Terjadi kesalahan saat memperbarui kata sandi.');
+  } finally {
+    isChangingPassword.value = false;
+  }
+}
+
+// User Personal Audit History
+const userPersonalAuditLogs = computed(() => {
+  const userName = authStore.user?.nama_lengkap?.toLowerCase() || '';
+  const userRole = authStore.user?.role || '';
+  return auditLogs.value.filter((l) => {
+    const matchName = l.aktor && l.aktor.toLowerCase().includes(userName);
+    const matchRole = l.role && l.role === userRole;
+    return matchName || matchRole;
+  }).slice(0, 10);
+});
 
 onMounted(() => {
   loadDashboardData();
@@ -1885,8 +2110,13 @@ onMounted(() => {
       </div>
 
       <div class="topbar-right">
-        <!-- User Badge -->
-        <div class="user-chip">
+        <!-- User Badge & Profile Click -->
+        <div
+          class="user-chip clickable-chip"
+          :class="{ active: activeTab === 'profile' }"
+          @click="activeTab = 'profile'"
+          title="Buka Halaman Profil Pengguna Lengkap"
+        >
           <div class="user-avatar">
             {{ authStore.user?.nama_lengkap?.charAt(0) || 'U' }}
           </div>
@@ -2023,6 +2253,16 @@ onMounted(() => {
           >
             <History :size="18" />
             <span>Audit Trail & Log</span>
+          </button>
+
+          <!-- Modul Profil Pengguna Lengkap -->
+          <button
+            class="nav-item item-profile"
+            :class="{ active: activeTab === 'profile' }"
+            @click="activeTab = 'profile'"
+          >
+            <User :size="18" />
+            <span>Profil Pengguna</span>
           </button>
         </nav>
 
@@ -4102,6 +4342,37 @@ onMounted(() => {
             </div>
           </div>
 
+          <!-- Scope Notice Banner (Admin OPD vs Superadmin) -->
+          <div v-if="authStore.currentRole === 'admin_opd'" class="scope-notice-banner">
+            <div class="scope-notice-icon">
+              <Building2 :size="20" class="text-sky" />
+            </div>
+            <div class="scope-notice-text">
+              <div class="scope-notice-title">
+                Lingkup Pengelolaan Terisolasi: <strong>{{ authStore.opdLabel }}</strong> (Mode Admin OPD)
+              </div>
+              <div class="scope-notice-desc">
+                Anda hanya berwenang melihat, mendaftarkan, mengedit, dan mengelola akun operator di lingkungan kerja {{ authStore.opdLabel }}. Akses lintas OPD dan peran eskalasi sistem dibatasi sesuai regulasi Satu Data Indonesia.
+              </div>
+            </div>
+            <span class="scope-badge-tag">Scope Terkunci: {{ authStore.user?.kode_opd || 'OPD' }}</span>
+          </div>
+
+          <div v-else-if="authStore.currentRole === 'superadmin'" class="scope-notice-banner superadmin-banner">
+            <div class="scope-notice-icon">
+              <ShieldCheck :size="20" class="text-emerald" />
+            </div>
+            <div class="scope-notice-text">
+              <div class="scope-notice-title">
+                Lingkup Pengelolaan Global: <strong>Seluruh Perangkat Daerah (Superadmin)</strong>
+              </div>
+              <div class="scope-notice-desc">
+                Anda memiliki hak penuh untuk mengelola pengguna dari seluruh OPD di lingkungan Pemerintah Kabupaten Minahasa Selatan serta mendistribusikan 8 tingkatan peran kewenangan resmi.
+              </div>
+            </div>
+            <span class="scope-badge-tag superadmin-tag">Akses Global</span>
+          </div>
+
           <!-- Visual Statistics Charts: Users -->
           <div class="tab-chart-grid">
             <StatChart
@@ -4157,7 +4428,7 @@ onMounted(() => {
                   </td>
                   <td>
                     <div class="action-btn-group">
-                      <span v-if="u.id !== 1 && canManageUsers" class="btn-wrap-group">
+                      <span v-if="canManageThisUser(u)" class="btn-wrap-group">
                         <button
                           type="button"
                           class="btn-act"
@@ -4192,7 +4463,7 @@ onMounted(() => {
                       </span>
                       <span v-else class="text-source">
                         <ShieldCheck :size="13" />
-                        <span>Akun Utama Terproteksi</span>
+                        <span>{{ u.id === 1 ? 'Akun Utama Terproteksi' : 'Di Luar Kewenangan OPD' }}</span>
                       </span>
                     </div>
                   </td>
@@ -4392,6 +4663,307 @@ onMounted(() => {
             />
           </div>
         </div>
+
+        <!-- ============================================================== -->
+        <!-- TAB 10: PROFIL PENGGUNA LENGKAP & STATISTIK KONTRIBUSI          -->
+        <!-- ============================================================== -->
+        <div v-if="activeTab === 'profile'" class="tab-content profile-tab-content">
+          <div class="content-header">
+            <div>
+              <h2 class="content-title">Profil Pengguna Lengkap &amp; Hak Akses</h2>
+              <p class="content-sub">Informasi akun kedinasan, struktur unit kerja, matriks hak akses RBAC, dan statistik kontribusi spasial</p>
+            </div>
+          </div>
+
+          <!-- Hero Profile Card -->
+          <div class="profile-hero-card">
+            <div class="hero-left">
+              <div class="profile-avatar-large">
+                <span>{{ authStore.user?.nama_lengkap?.charAt(0) || 'U' }}</span>
+                <span class="avatar-online-dot" title="Sesi Pengguna Aktif"></span>
+              </div>
+              <div class="hero-identity">
+                <div class="hero-name-row">
+                  <h3 class="hero-name">{{ authStore.user?.nama_lengkap }}</h3>
+                  <span class="badge-role-hero">{{ authStore.roleLabel }}</span>
+                  <span class="badge-status-active">
+                    <CheckCircle2 :size="13" />
+                    <span>Terverifikasi Aktif</span>
+                  </span>
+                </div>
+                <div class="hero-meta-row">
+                  <span class="hero-meta-item">
+                    <User :size="13" />
+                    <span>@{{ authStore.user?.username }} (ID: #{{ authStore.user?.id }})</span>
+                  </span>
+                  <span class="hero-meta-item">
+                    <Building2 :size="13" />
+                    <span>{{ authStore.opdLabel }} ({{ authStore.user?.kode_opd || 'OPD' }})</span>
+                  </span>
+                  <span class="hero-meta-item">
+                    <Mail :size="13" />
+                    <span>{{ authStore.user?.email || '-' }}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="hero-right">
+              <div class="session-chip">
+                <span class="session-label">Sesi Akses:</span>
+                <span class="session-value">WITA &bull; Resmi Frontend Token</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4 Mini Metric Information Cards -->
+          <div class="profile-metrics-grid">
+            <div class="profile-mini-metric">
+              <div class="mini-metric-icon bg-sky">
+                <Briefcase :size="18" />
+              </div>
+              <div class="mini-metric-content">
+                <span class="mini-metric-label">Jabatan Kedinasan</span>
+                <span class="mini-metric-val">{{ authStore.user?.jabatan || profileEditForm.jabatan || 'Pengelola Data Spasial' }}</span>
+              </div>
+            </div>
+
+            <div class="profile-mini-metric">
+              <div class="mini-metric-icon bg-emerald">
+                <ShieldCheck :size="18" />
+              </div>
+              <div class="mini-metric-content">
+                <span class="mini-metric-label">Nomor Induk Pegawai (NIP)</span>
+                <span class="mini-metric-val font-mono">{{ authStore.user?.nip || profileEditForm.nip || '19840512 200801 1 001' }}</span>
+              </div>
+            </div>
+
+            <div class="profile-mini-metric">
+              <div class="mini-metric-icon bg-amber">
+                <Phone :size="18" />
+              </div>
+              <div class="mini-metric-content">
+                <span class="mini-metric-label">Kontak WhatsApp / Telp</span>
+                <span class="mini-metric-val font-mono">{{ authStore.user?.telepon || profileEditForm.telepon || '0812-4455-0111' }}</span>
+              </div>
+            </div>
+
+            <div class="profile-mini-metric">
+              <div class="mini-metric-icon bg-indigo">
+                <MapPin :size="18" />
+              </div>
+              <div class="mini-metric-content">
+                <span class="mini-metric-label">Alamat Kantor Unit Kerja</span>
+                <span class="mini-metric-val truncate-text" :title="authStore.user?.alamat_kantor || profileEditForm.alamat_kantor">
+                  {{ authStore.user?.alamat_kantor || profileEditForm.alamat_kantor || 'Kompleks Kantor Bupati Minsel, Pondang, Amurang' }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Visual Statistics Charts: Profile Charts (Mematuhi aturan tegas chart real setiap halaman) -->
+          <div class="tab-chart-grid">
+            <StatChart
+              title="Status Dataset Spasial OPD Pengguna"
+              subtitle="Proporsi dataset tayang, dalam proses reviu/validasi, draf dan revisi pada lingkup OPD"
+              type="doughnut"
+              :data="chartProfileDatasetStatus"
+              badge="Satu Data Minsel"
+            />
+            <StatChart
+              title="Distribusi Jejak Audit &amp; Kontribusi Personal"
+              subtitle="Frekuensi aktivitas aksi pengguna yang tercatat dalam audit trail sistem"
+              type="bar"
+              :data="chartProfileAuditActivities"
+              badge="Audit Trail Personal"
+            />
+          </div>
+
+          <!-- Two Column Profile Form Grid -->
+          <div class="profile-forms-grid">
+            <!-- Form 1: Edit Informasi Data Diri -->
+            <div class="profile-card">
+              <div class="profile-card-header">
+                <div class="profile-card-title-wrap">
+                  <Edit3 :size="18" class="text-sky" />
+                  <h3 class="profile-card-title">Perbarui Informasi Data Diri</h3>
+                </div>
+                <span class="profile-card-badge">Data Personal Pegawai</span>
+              </div>
+
+              <form class="profile-form" @submit.prevent="handleSaveProfile">
+                <div class="form-row-2">
+                  <div class="form-field">
+                    <label class="form-label">Nama Lengkap &amp; Gelar <span class="text-red">*</span></label>
+                    <input v-model="profileEditForm.nama_lengkap" type="text" class="form-input" required />
+                  </div>
+                  <div class="form-field">
+                    <label class="form-label">Email Dinas Resmi <span class="text-red">*</span></label>
+                    <input v-model="profileEditForm.email" type="email" class="form-input" required />
+                  </div>
+                </div>
+
+                <div class="form-row-2">
+                  <div class="form-field">
+                    <label class="form-label">Nomor Induk Pegawai (NIP)</label>
+                    <input v-model="profileEditForm.nip" type="text" class="form-input font-mono" placeholder="19840512 200801 1 xxx" />
+                  </div>
+                  <div class="form-field">
+                    <label class="form-label">Nomor Telepon / WhatsApp</label>
+                    <input v-model="profileEditForm.telepon" type="text" class="form-input font-mono" placeholder="0812-xxxx-xxxx" />
+                  </div>
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label">Jabatan Struktural / Fungsional</label>
+                  <input v-model="profileEditForm.jabatan" type="text" class="form-input" placeholder="Pranata Komputer / Pengelola GIS" />
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label">Alamat Kantor Unit Kerja</label>
+                  <textarea v-model="profileEditForm.alamat_kantor" class="form-textarea" rows="2" placeholder="Alamat lengkap instansi..."></textarea>
+                </div>
+
+                <div class="profile-form-footer">
+                  <button type="submit" class="btn-primary-action" :disabled="isSavingProfile">
+                    <Save :size="15" />
+                    <span>{{ isSavingProfile ? 'Menyimpan...' : 'Simpan Perubahan Profil' }}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <!-- Column 2: Keamanan Akun & Matriks Hak Akses RBAC -->
+            <div class="profile-card-stack">
+              <!-- Sub-card: Ganti Kata Sandi -->
+              <div class="profile-card">
+                <div class="profile-card-header">
+                  <div class="profile-card-title-wrap">
+                    <Lock :size="18" class="text-amber" />
+                    <h3 class="profile-card-title">Keamanan Akun &amp; Kata Sandi</h3>
+                  </div>
+                  <span class="profile-card-badge">Enkripsi SHA-256</span>
+                </div>
+
+                <form class="profile-form" @submit.prevent="handleChangePassword">
+                  <div class="form-field">
+                    <label class="form-label">Kata Sandi Saat Ini</label>
+                    <input v-model="passwordForm.current_password" type="password" class="form-input" placeholder="••••••••" />
+                  </div>
+
+                  <div class="form-row-2">
+                    <div class="form-field">
+                      <label class="form-label">Kata Sandi Baru <span class="text-red">*</span></label>
+                      <input v-model="passwordForm.new_password" type="password" class="form-input" placeholder="Min. 6 karakter" required />
+                    </div>
+                    <div class="form-field">
+                      <label class="form-label">Konfirmasi Sandi Baru <span class="text-red">*</span></label>
+                      <input v-model="passwordForm.confirm_password" type="password" class="form-input" placeholder="Ulangi sandi baru" required />
+                    </div>
+                  </div>
+
+                  <div class="profile-form-footer">
+                    <button type="submit" class="btn-amber-action" :disabled="isChangingPassword">
+                      <Key :size="15" />
+                      <span>{{ isChangingPassword ? 'Memproses...' : 'Perbarui Kata Sandi' }}</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              <!-- Sub-card: Matriks Hak Akses RBAC -->
+              <div class="profile-card">
+                <div class="profile-card-header">
+                  <div class="profile-card-title-wrap">
+                    <Shield :size="18" class="text-emerald" />
+                    <h3 class="profile-card-title">Hak Akses Role &amp; Wewenang (RBAC)</h3>
+                  </div>
+                  <span class="profile-card-badge">{{ authStore.user?.permissions?.length || 15 }} Hak Akses Aktif</span>
+                </div>
+
+                <div class="rbac-box-content">
+                  <div class="rbac-scope-row">
+                    <span class="rbac-scope-label">Lingkup Batas Operasional:</span>
+                    <strong class="rbac-scope-val">
+                      {{ authStore.currentRole === 'superadmin' ? 'Seluruh OPD & Sistem Minsel (Akses Penuh)' : `${authStore.opdLabel} (${authStore.user?.kode_opd || 'OPD'})` }}
+                    </strong>
+                  </div>
+
+                  <div class="rbac-permissions-tags">
+                    <span
+                      v-for="perm in (authStore.user?.permissions || ['user.view', 'dataset.view', 'dataset.create'])"
+                      :key="perm"
+                      class="rbac-perm-tag"
+                    >
+                      <CheckCircle2 :size="11" />
+                      <span>{{ perm }}</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Personal Recent Audit Logs -->
+          <div class="table-card">
+            <div class="table-card-header">
+              <div class="table-card-title-wrap">
+                <History :size="18" class="text-sky" />
+                <h3 class="table-card-title">Riwayat Aktivitas &amp; Kontribusi Terbaru Pengguna</h3>
+              </div>
+              <span class="count-badge">{{ userPersonalAuditLogs.length }} Aktivitas Tercatat</span>
+            </div>
+
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Waktu (WITA)</th>
+                  <th>Kategori</th>
+                  <th>Aksi</th>
+                  <th>Objek Terkait</th>
+                  <th>Keterangan Aktivitas</th>
+                  <th>Detail</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="log in userPersonalAuditLogs" :key="log.id">
+                  <td>
+                    <span class="cell-time font-mono">{{ log.timestamp }}</span>
+                  </td>
+                  <td>
+                    <span class="log-cat-badge" :class="'cat-' + log.kategori.toLowerCase()">
+                      {{ log.kategori }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="log-action-tag font-mono">{{ log.aksi }}</span>
+                  </td>
+                  <td>
+                    <span class="cell-title">{{ log.objek }}</span>
+                  </td>
+                  <td>
+                    <span class="log-note-text" :title="log.keterangan">{{ log.keterangan }}</span>
+                  </td>
+                  <td style="text-align: center;">
+                    <button
+                      type="button"
+                      class="btn-act btn-view"
+                      @click="showAuditDetail(log)"
+                      title="Lihat Detail Log"
+                    >
+                      <Eye :size="13" />
+                      <span>Lihat</span>
+                    </button>
+                  </td>
+                </tr>
+                <tr v-if="userPersonalAuditLogs.length === 0">
+                  <td colspan="6" class="text-center py-4 text-source">
+                    Belum ada riwayat aktivitas terbaru yang tercatat untuk akun ini.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </section>
     </div>
 
@@ -4564,26 +5136,42 @@ onMounted(() => {
 
           <div class="form-row-2">
             <div class="form-field">
-              <label class="form-label">Peran Sistem (Role)</label>
-              <select v-model="newUserForm.role" class="form-input">
+              <label class="form-label">Peran Sistem (Role) <span class="text-red">*</span></label>
+              <!-- Batasi pilihan role jika login sebagai Admin OPD -->
+              <select v-if="authStore.currentRole === 'admin_opd'" v-model="newUserForm.role" class="form-input">
                 <option value="operator_opd">Operator OPD</option>
+                <option value="admin_opd">Admin OPD (Delegasi)</option>
+              </select>
+              <select v-else v-model="newUserForm.role" class="form-input">
+                <option value="superadmin">Superadmin</option>
+                <option value="admin_gis">Admin GIS</option>
                 <option value="admin_opd">Admin OPD</option>
+                <option value="operator_opd">Operator OPD</option>
                 <option value="validator_gis">Validator GIS</option>
                 <option value="approver_data">Approver Data (Bappelitbangda)</option>
-                <option value="admin_gis">Admin GIS</option>
                 <option value="pimpinan">Pimpinan Daerah</option>
+                <option value="publik">Publik</option>
               </select>
             </div>
             <div class="form-field">
-              <label class="form-label">Instansi / OPD</label>
-              <select v-model="newUserForm.opd" class="form-input">
-                <option value="Dinas Pekerjaan Umum dan Penataan Ruang">Dinas Pekerjaan Umum dan Penataan Ruang</option>
-                <option value="Dinas Pertanian">Dinas Pertanian</option>
-                <option value="Dinas Kesehatan">Dinas Kesehatan</option>
-                <option value="Dinas Pariwisata">Dinas Pariwisata</option>
-                <option value="Badan Penanggulangan Bencana Daerah">Badan Penanggulangan Bencana Daerah</option>
-                <option value="Badan Perencanaan, Penelitian dan Pengembangan Daerah">Bappelitbangda</option>
-                <option value="Dinas Komunikasi dan Informatika">Dinas Komunikasi dan Informatika</option>
+              <label class="form-label">Instansi / OPD <span class="text-red">*</span></label>
+              <!-- Kunci OPD jika login sebagai Admin OPD -->
+              <input
+                v-if="authStore.currentRole === 'admin_opd'"
+                :value="authStore.opdLabel"
+                type="text"
+                class="form-input"
+                disabled
+              />
+              <select
+                v-else
+                v-model="newUserForm.opd"
+                class="form-input"
+                @change="handleSelectNewUserOpd"
+              >
+                <option v-for="o in opdList" :key="o.id" :value="o.nama_opd">
+                  {{ o.nama_opd }} ({{ o.kode_opd }})
+                </option>
               </select>
             </div>
           </div>
@@ -4597,6 +5185,8 @@ onMounted(() => {
           </div>
         </form>
       </div>
+    </div>
+
     <!-- ============================================================== -->
     <!-- MODAL 4: EDIT DATA PENGGUNA                                   -->
     <!-- ============================================================== -->
@@ -4632,7 +5222,12 @@ onMounted(() => {
           <div class="form-row-2">
             <div class="form-field">
               <label class="form-label">Peran Sistem (Role)</label>
-              <select v-model="editUserForm.role" class="form-input">
+              <!-- Batasi pilihan role jika login sebagai Admin OPD -->
+              <select v-if="authStore.currentRole === 'admin_opd'" v-model="editUserForm.role" class="form-input">
+                <option value="operator_opd">Operator OPD</option>
+                <option value="admin_opd">Admin OPD</option>
+              </select>
+              <select v-else v-model="editUserForm.role" class="form-input">
                 <option value="superadmin">Superadmin</option>
                 <option value="admin_gis">Admin GIS</option>
                 <option value="admin_opd">Admin OPD</option>
@@ -4645,7 +5240,20 @@ onMounted(() => {
             </div>
             <div class="form-field">
               <label class="form-label">Instansi / OPD</label>
-              <select v-model="editUserForm.opd" class="form-input">
+              <!-- Kunci OPD jika login sebagai Admin OPD -->
+              <input
+                v-if="authStore.currentRole === 'admin_opd'"
+                :value="editUserForm.opd"
+                type="text"
+                class="form-input"
+                disabled
+              />
+              <select
+                v-else
+                v-model="editUserForm.opd"
+                class="form-input"
+                @change="handleSelectEditUserOpd"
+              >
                 <option v-for="o in opdList" :key="o.id" :value="o.nama_opd">
                   {{ o.nama_opd }} ({{ o.kode_opd }})
                 </option>
@@ -5500,7 +6108,6 @@ onMounted(() => {
         </form>
       </div>
     </div>
-  </div>
   </div>
 </template>
 
@@ -7974,5 +8581,504 @@ onMounted(() => {
 .inline-file-badge {
   color: #38bdf8;
   font-weight: 500;
+}
+
+/* ============================================================== */
+/* SCOPE NOTICE BANNER (ADMIN OPD & SUPERADMIN)                   */
+/* ============================================================== */
+.scope-notice-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(2, 132, 199, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  border-radius: 10px;
+  padding: 12px 18px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.scope-notice-banner.superadmin-banner {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(52, 211, 153, 0.3);
+}
+
+.scope-notice-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.scope-notice-text {
+  flex: 1;
+}
+
+.scope-notice-title {
+  font-size: 0.92rem;
+  color: #f1f5f9;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.scope-notice-desc {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
+.scope-badge-tag {
+  background: rgba(2, 132, 199, 0.25);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.scope-badge-tag.superadmin-tag {
+  background: rgba(16, 185, 129, 0.25);
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.4);
+}
+
+/* ============================================================== */
+/* USER CHIP CLICKABLE & ITEM PROFILE                             */
+/* ============================================================== */
+.clickable-chip {
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.clickable-chip:hover,
+.clickable-chip.active {
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+}
+
+.item-profile {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 6px;
+  padding-top: 10px;
+}
+
+/* ============================================================== */
+/* PROFILE TAB CONTENT & HERO                                     */
+/* ============================================================== */
+.profile-tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.profile-hero-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+  padding: 24px 28px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(8px);
+}
+
+.hero-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.profile-avatar-large {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+}
+
+.avatar-online-dot {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #10b981;
+  border: 2px solid #0f172a;
+  box-shadow: 0 0 8px #10b981;
+}
+
+.hero-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hero-name-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.hero-name {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #f8fafc;
+  margin: 0;
+}
+
+.badge-role-hero {
+  background: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 6px;
+}
+
+.badge-status-active {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(52, 211, 153, 0.35);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 6px;
+}
+
+.hero-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-size: 0.8rem;
+  color: #94a3b8;
+  flex-wrap: wrap;
+}
+
+.hero-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.session-chip {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 8px;
+  padding: 8px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.session-label {
+  font-size: 0.7rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.session-value {
+  font-size: 0.78rem;
+  color: #38bdf8;
+  font-weight: 600;
+}
+
+/* ============================================================== */
+/* 4 MINI METRIC CARDS                                            */
+/* ============================================================== */
+.profile-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 1024px) {
+  .profile-metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .profile-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.profile-mini-metric {
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.mini-metric-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.bg-sky { background: rgba(2, 132, 199, 0.2); color: #38bdf8; }
+.bg-emerald { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+.bg-amber { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+.bg-indigo { background: rgba(99, 102, 241, 0.2); color: #a5b4fc; }
+
+.mini-metric-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.mini-metric-label {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.mini-metric-val {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.truncate-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ============================================================== */
+/* TWO COLUMN FORMS & RBAC MATRIX                                 */
+/* ============================================================== */
+.profile-forms-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 20px;
+}
+
+@media (max-width: 900px) {
+  .profile-forms-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.profile-card {
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.profile-card-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.profile-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  padding-bottom: 12px;
+}
+
+.profile-card-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.profile-card-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #f8fafc;
+  margin: 0;
+}
+
+.profile-card-badge {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  background: rgba(15, 23, 42, 0.6);
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.profile-form-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.btn-primary-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #0284c7;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 18px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-primary-action:hover:not(:disabled) {
+  background: #0369a1;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4);
+}
+
+.btn-primary-action:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-amber-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #d97706;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 18px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-amber-action:hover:not(:disabled) {
+  background: #b45309;
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.4);
+}
+
+.btn-amber-action:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ============================================================== */
+/* RBAC MATRIX BOX                                                */
+/* ============================================================== */
+.rbac-box-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rbac-scope-row {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rbac-scope-label {
+  color: #64748b;
+  font-size: 0.72rem;
+}
+
+.rbac-scope-val {
+  color: #38bdf8;
+}
+
+.rbac-permissions-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.rbac-perm-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(52, 211, 153, 0.25);
+  color: #34d399;
+  font-size: 0.72rem;
+  font-family: monospace;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.table-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.table-card-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.table-card-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #f1f5f9;
+  margin: 0;
+}
+
+.count-badge {
+  font-size: 0.72rem;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.15);
+  padding: 3px 8px;
+  border-radius: 4px;
 }
 </style>

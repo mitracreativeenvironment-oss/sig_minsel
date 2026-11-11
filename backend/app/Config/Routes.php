@@ -24,6 +24,8 @@ $routes->group('spasials', static function ($routes) {
     $routes->get('auth/roles', 'Api\AuthController::roles');
     $routes->post('auth/login', 'Api\AuthController::login');
     $routes->get('auth/me', 'Api\AuthController::me');
+    $routes->get('auth/profile', 'Api\AuthController::profile');
+    $routes->post('auth/profile', 'Api\AuthController::updateProfile');
 
     // Hierarki Wilayah Administrasi (Kabupaten -> Kecamatan -> Desa)
     $routes->get('wilayah/kabupaten', 'Api\WilayahController::kabupaten');

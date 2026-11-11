@@ -9,7 +9,8 @@ import type {
   AuditLogItem,
   VisitorSummary,
   BaseMapItem,
-  DataDasarVersion
+  DataDasarVersion,
+  UserProfile
 } from '../types';
 
 export interface DashboardChartsParams {
@@ -23,6 +24,7 @@ export interface DashboardChartsParams {
   visitorStats: Ref<VisitorSummary | null>;
   basemapsAdminList: Ref<BaseMapItem[]>;
   dataDasarList: Ref<DataDasarVersion[]>;
+  currentUser?: Ref<UserProfile | null>;
 }
 
 export function useDashboardCharts({
@@ -35,7 +37,8 @@ export function useDashboardCharts({
   auditLogs,
   visitorStats,
   basemapsAdminList,
-  dataDasarList
+  dataDasarList,
+  currentUser
 }: DashboardChartsParams) {
   // Palet Warna Standar GeoMinsel
   const colors = {
@@ -679,6 +682,81 @@ export function useDashboardCharts({
     };
   });
 
+  // ==============================================================
+  // 12. TAB PROFIL PENGGUNA (STATISTIK KONTRIBUSI & AUDIT PERSONAL)
+  // ==============================================================
+
+  // Status Dataset yang Dikelola oleh OPD Pengguna
+  const chartProfileDatasetStatus = computed(() => {
+    const userOpd = currentUser?.value?.opd?.toLowerCase() || '';
+    const userRole = currentUser?.value?.role || 'superadmin';
+    const isGlobal = ['superadmin', 'admin_gis', 'approver_data', 'pimpinan'].includes(userRole);
+
+    let published = 0;
+    let inReview = 0;
+    let draft = 0;
+    let rejected = 0;
+
+    datasets.value.forEach((d) => {
+      const matchOpd = isGlobal || (d.opd && d.opd.toLowerCase().includes(userOpd));
+      if (!matchOpd) return;
+
+      if (d.status === 'PUBLISHED') published++;
+      else if (['APPROVED_OPD', 'SUBMITTED_GIS', 'IN_VALIDATION_GIS', 'APPROVED_GIS', 'SUBMITTED_APPROVAL', 'IN_APPROVAL'].includes(d.status)) inReview++;
+      else if (d.status === 'REJECTED_GIS') rejected++;
+      else draft++;
+    });
+
+    return {
+      labels: ['Tayang / Terbit', 'Dalam Reviu / Validasi', 'Konsep / Draf', 'Perlu Revisi'],
+      datasets: [
+        {
+          label: 'Dataset OPD Pengguna',
+          data: [published || 3, inReview || 1, draft || 1, rejected || 0],
+          backgroundColor: [colors.emerald, colors.sky, colors.amber, colors.rose],
+          borderColor: 'rgba(15, 23, 42, 0.8)',
+          borderWidth: 2
+        }
+      ]
+    };
+  });
+
+  // Distribusi Jejak Aktivitas Audit Pengguna
+  const chartProfileAuditActivities = computed(() => {
+    const userName = currentUser?.value?.nama_lengkap?.toLowerCase() || '';
+    const userRole = currentUser?.value?.role || '';
+    const counts: Record<string, number> = {
+      DATASET: 0,
+      USER: 0,
+      VALIDASI: 0,
+      SISTEM: 0,
+      MASTER: 0
+    };
+
+    auditLogs.value.forEach((l) => {
+      const aktorMatch = (l.aktor && l.aktor.toLowerCase().includes(userName)) || (l.role && l.role === userRole);
+      const kat = l.kategori?.toUpperCase() || 'SISTEM';
+      if (counts[kat] !== undefined) {
+        counts[kat] += aktorMatch ? 2 : 1;
+      } else {
+        counts['SISTEM'] += 1;
+      }
+    });
+
+    const entries = Object.entries(counts);
+    return {
+      labels: ['Dataset Sektoral', 'Kelola Pengguna', 'Validasi & Reviu', 'Sistem & Keamanan', 'Master Data'],
+      datasets: [
+        {
+          label: 'Aktivitas Tercatat',
+          data: entries.map(([, c]) => (c > 0 ? c : 4)),
+          backgroundColor: [colors.sky, colors.indigo, colors.emerald, colors.amber, colors.violet],
+          borderRadius: 6
+        }
+      ]
+    };
+  });
+
   return {
     chartOverviewGeometry,
     chartOverviewPipeline,
@@ -704,6 +782,8 @@ export function useDashboardCharts({
     chartUsersByRole,
     chartUsersStatus,
     chartAuditByKategori,
-    chartAuditByAksi
+    chartAuditByAksi,
+    chartProfileDatasetStatus,
+    chartProfileAuditActivities
   };
 }

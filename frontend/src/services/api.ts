@@ -141,6 +141,30 @@ export const sigApi = {
     });
   },
 
+  async getProfile(params: { role?: string; id?: number } = {}): Promise<{ data: UserProfile; message: string }> {
+    const searchParams = new URLSearchParams();
+    if (params.role) searchParams.set('role', params.role);
+    if (params.id) searchParams.set('id', params.id.toString());
+    const query = searchParams.toString() ? `?${searchParams.toString()}` : '';
+    return request(`/auth/profile${query}`);
+  },
+
+  async updateProfile(payload: {
+    id: number;
+    nama_lengkap?: string;
+    email?: string;
+    nip?: string;
+    jabatan?: string;
+    telepon?: string;
+    alamat_kantor?: string;
+    password_baru?: string;
+  }): Promise<{ data: UserProfile; message: string }> {
+    return request('/auth/profile', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
   // ==========================================
   // WORKFLOW PERSETUJUAN TERPUSAT (12 STATUS)
   // ==========================================
@@ -333,8 +357,14 @@ export const sigApi = {
   // CRUD MANAJEMEN PENGGUNA & OPD
   // ==========================================
 
-  async getUsers(): Promise<{ data: UserItem[]; message: string }> {
-    return request('/admin/users');
+  async getUsers(params: { caller_role?: string; caller_opd?: string; kode_opd?: string; opd?: string } = {}): Promise<{ data: UserItem[]; message: string }> {
+    const searchParams = new URLSearchParams();
+    if (params.caller_role) searchParams.set('caller_role', params.caller_role);
+    if (params.caller_opd) searchParams.set('caller_opd', params.caller_opd);
+    if (params.kode_opd) searchParams.set('kode_opd', params.kode_opd);
+    if (params.opd) searchParams.set('opd', params.opd);
+    const query = searchParams.toString() ? `?${searchParams.toString()}` : '';
+    return request(`/admin/users${query}`);
   },
 
   async createUser(payload: {
@@ -344,6 +374,9 @@ export const sigApi = {
     role: string;
     opd: string;
     kode_opd: string;
+    caller_role?: string;
+    caller_opd?: string;
+    caller_kode_opd?: string;
   }): Promise<{ data: UserItem; message: string }> {
     return request('/admin/users/create', {
       method: 'POST',
@@ -351,10 +384,11 @@ export const sigApi = {
     });
   },
 
-  async toggleUserStatus(id: number): Promise<{ data: UserItem; message: string }> {
+  async toggleUserStatus(payload: number | { id: number; caller_role?: string; caller_kode_opd?: string }): Promise<{ data: UserItem; message: string }> {
+    const body = typeof payload === 'number' ? { id: payload } : payload;
     return request('/admin/users/toggle', {
       method: 'POST',
-      body: JSON.stringify({ id })
+      body: JSON.stringify(body)
     });
   },
 
@@ -365,6 +399,12 @@ export const sigApi = {
     role?: string;
     opd?: string;
     kode_opd?: string;
+    nip?: string;
+    jabatan?: string;
+    telepon?: string;
+    caller_role?: string;
+    caller_opd?: string;
+    caller_kode_opd?: string;
   }): Promise<{ data: UserItem; message: string }> {
     return request('/admin/users/update', {
       method: 'POST',
@@ -372,10 +412,11 @@ export const sigApi = {
     });
   },
 
-  async deleteUser(id: number): Promise<{ data: { id: number }; message: string }> {
+  async deleteUser(payload: number | { id: number; caller_role?: string; caller_kode_opd?: string }): Promise<{ data: { id: number }; message: string }> {
+    const body = typeof payload === 'number' ? { id: payload } : payload;
     return request('/admin/users/delete', {
       method: 'POST',
-      body: JSON.stringify({ id })
+      body: JSON.stringify(body)
     });
   },
 

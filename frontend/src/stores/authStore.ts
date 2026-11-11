@@ -111,6 +111,51 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function fetchProfile(overrideRole?: string, overrideId?: number) {
+    loading.value = true;
+    try {
+      const res = await sigApi.getProfile({
+        role: overrideRole || user.value?.role || 'superadmin',
+        id: overrideId || user.value?.id
+      });
+      if (res.data) {
+        user.value = { ...user.value, ...res.data };
+        localStorage.setItem('geominsel_user', JSON.stringify(user.value));
+      }
+      return res.data;
+    } catch (e: any) {
+      console.warn('Gagal memuat profil lengkap dari API:', e);
+      return user.value;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function updateProfile(data: {
+    nama_lengkap?: string;
+    email?: string;
+    nip?: string;
+    jabatan?: string;
+    telepon?: string;
+    alamat_kantor?: string;
+    password_baru?: string;
+  }) {
+    loading.value = true;
+    try {
+      const res = await sigApi.updateProfile({
+        id: user.value?.id || 1,
+        ...data
+      });
+      if (res.data) {
+        user.value = { ...user.value, ...res.data };
+        localStorage.setItem('geominsel_user', JSON.stringify(user.value));
+      }
+      return res;
+    } finally {
+      loading.value = false;
+    }
+  }
+
   function quickSwitch(roleName: RoleName) {
     return login(roleName);
   }
@@ -150,6 +195,8 @@ export const useAuthStore = defineStore('auth', () => {
     opdLabel,
     loadRoles,
     login,
+    fetchProfile,
+    updateProfile,
     quickSwitch,
     logout,
     initFromStorage,

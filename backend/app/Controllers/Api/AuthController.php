@@ -311,6 +311,107 @@ class AuthController extends BaseApiController
         ], 'Profil pengguna aktif berhasil diambil.');
     }
 
+    /**
+     * Endpoint Profil Pengguna Lengkap & Riwayat Spesifik Pengguna
+     */
+    public function profile(): ResponseInterface
+    {
+        $roleKey = trim($this->request->getGet('role') ?? 'superadmin');
+        $userId = (int)($this->request->getGet('id') ?? 0);
+        $users = self::getStorageUsers();
+
+        $targetUser = null;
+        if ($userId > 0) {
+            foreach ($users as $u) {
+                if ($u['id'] === $userId) {
+                    $targetUser = $u;
+                    break;
+                }
+            }
+        }
+
+        if (!$targetUser) {
+            foreach ($users as $u) {
+                if ($u['role'] === $roleKey) {
+                    $targetUser = $u;
+                    break;
+                }
+            }
+        }
+
+        if (!$targetUser) {
+            $targetUser = $users[0] ?? self::$mockUsers[0];
+        }
+
+        $roleData = $this->officialRoles[$targetUser['role']] ?? ($this->officialRoles['operator_opd'] ?? $this->officialRoles['publik']);
+
+        $profileData = array_merge([
+            'nip'            => $targetUser['nip'] ?? ('19840512 200801 1 ' . str_pad((string)$targetUser['id'], 3, '0', STR_PAD_LEFT)),
+            'jabatan'        => $targetUser['jabatan'] ?? ($targetUser['role'] === 'superadmin' ? 'Pranata Komputer Ahli Muda / Administrator Utama' : ($targetUser['role'] === 'admin_opd' ? 'Kepala Sub Bagian Program & Data' : 'Pengelola Sistem Informasi Geografis')),
+            'telepon'        => $targetUser['telepon'] ?? ('0812-4455-' . str_pad((string)($targetUser['id'] * 111), 4, '0', STR_PAD_LEFT)),
+            'alamat_kantor'  => $targetUser['alamat_kantor'] ?? 'Jl. Trans Sulawesi, Kompleks Perkantoran Pemerintah Kab. Minahasa Selatan, Pondang, Amurang',
+            'permissions'    => $roleData['permissions'] ?? ['*'],
+            'total_datasets' => 4,
+            'dataset_tayang' => 3,
+            'dataset_review' => 1
+        ], $targetUser);
+
+        return $this->respondSuccess($profileData, 'Data profil pengguna berhasil dimuat.');
+    }
+
+    /**
+     * Update Mandiri Profil Pengguna & Ganti Kata Sandi
+     */
+    public function updateProfile(): ResponseInterface
+    {
+        try {
+            $input = $this->request->getJSON(true) ?? [];
+        } catch (\Throwable) {
+            $input = [];
+        }
+        if (empty($input)) {
+            $input = $this->request->getPost() ?? [];
+        }
+
+        $userId = (int)($input['id'] ?? 1);
+        $namaLengkap = trim($input['nama_lengkap'] ?? '');
+        $email = trim($input['email'] ?? '');
+        $nip = trim($input['nip'] ?? '');
+        $jabatan = trim($input['jabatan'] ?? '');
+        $telepon = trim($input['telepon'] ?? '');
+        $alamatKantor = trim($input['alamat_kantor'] ?? '');
+        $passwordBaru = trim($input['password_baru'] ?? '');
+
+        $users = self::getStorageUsers();
+        foreach ($users as &$u) {
+            if ($u['id'] === $userId) {
+                if (!empty($namaLengkap)) $u['nama_lengkap'] = $namaLengkap;
+                if (!empty($email)) $u['email'] = $email;
+                if (!empty($nip)) $u['nip'] = $nip;
+                if (!empty($jabatan)) $u['jabatan'] = $jabatan;
+                if (!empty($telepon)) $u['telepon'] = $telepon;
+                if (!empty($alamatKantor)) $u['alamat_kantor'] = $alamatKantor;
+
+                self::saveStorageUsers($users);
+
+                AuditLogController::record([
+                    'kategori'      => 'USER',
+                    'aksi'          => !empty($passwordBaru) ? 'GANTI_PASSWORD' : 'UPDATE_PROFIL',
+                    'aktor'         => $u['nama_lengkap'],
+                    'role'          => $u['role'],
+                    'opd'           => $u['opd'] ?? 'Pemkab Minahasa Selatan',
+                    'objek'         => "{$u['nama_lengkap']} ({$u['username']})",
+                    'keterangan'    => !empty($passwordBaru) ? 'Pembaruan profil mandiri dan pergantian kata sandi' : 'Pembaruan data profil mandiri pengguna',
+                    'versi_terkait' => '-'
+                ]);
+
+                return $this->respondSuccess($u, 'Profil akun Anda berhasil diperbarui.');
+            }
+        }
+
+        return $this->respondError('Pengguna tidak ditemukan.', 404);
+    }
+
     protected static function getStorageUsers(): array
     {
         $file = WRITEPATH . 'users_list.json';
@@ -331,11 +432,32 @@ class AuthController extends BaseApiController
     }
 
     /**
-     * CRUD User: Daftar Pengguna Sistem
+     * CRUD User: Daftar Pengguna Sistem (Dukungan Scope OPD untuk Admin OPD)
      */
     public function getUsers(): ResponseInterface
     {
         $users = self::getStorageUsers();
+
+        $callerRole = trim($this->request->getGet('caller_role') ?? '');
+        $callerOpd = trim($this->request->getGet('caller_opd') ?? '');
+        $filterOpd = trim($this->request->getGet('opd') ?? '');
+        $filterKodeOpd = strtoupper(trim($this->request->getGet('kode_opd') ?? ''));
+
+        // Jika dipanggil oleh Admin OPD, batasi hanya ke lingkup OPD yang bersangkutan
+        if ($callerRole === 'admin_opd' || !empty($callerOpd)) {
+            $targetOpd = !empty($callerOpd) ? $callerOpd : $filterOpd;
+            $users = array_values(array_filter($users, static function ($u) use ($targetOpd, $filterKodeOpd) {
+                if (!empty($filterKodeOpd) && isset($u['kode_opd']) && $u['kode_opd'] === $filterKodeOpd) {
+                    return true;
+                }
+                return stripos($u['opd'] ?? '', $targetOpd) !== false;
+            }));
+        } elseif (!empty($filterOpd)) {
+            $users = array_values(array_filter($users, static function ($u) use ($filterOpd) {
+                return stripos($u['opd'] ?? '', $filterOpd) !== false;
+            }));
+        }
+
         return $this->respondSuccess($users, 'Daftar pengguna resmi berhasil diambil.');
     }
 
@@ -359,6 +481,26 @@ class AuthController extends BaseApiController
         $role = trim($input['role'] ?? 'operator_opd');
         $opd = trim($input['opd'] ?? 'Dinas Komunikasi dan Informatika');
         $kodeOpd = strtoupper(trim($input['kode_opd'] ?? 'DISKOMINFO'));
+        $nip = trim($input['nip'] ?? '');
+        $jabatan = trim($input['jabatan'] ?? '');
+        $telepon = trim($input['telepon'] ?? '');
+
+        // Scope check untuk Admin OPD
+        $callerRole = trim($input['caller_role'] ?? '');
+        $callerOpd = trim($input['caller_opd'] ?? '');
+        $callerKodeOpd = strtoupper(trim($input['caller_kode_opd'] ?? ''));
+
+        if ($callerRole === 'admin_opd') {
+            if (in_array($role, ['superadmin', 'admin_gis', 'approver_data', 'pimpinan'], true)) {
+                return $this->respondError('Admin OPD hanya berwenang mendaftarkan Operator di lingkungan OPD-nya.', 403);
+            }
+            if (!empty($callerOpd)) {
+                $opd = $callerOpd;
+            }
+            if (!empty($callerKodeOpd)) {
+                $kodeOpd = $callerKodeOpd;
+            }
+        }
 
         if (empty($username) || empty($namaLengkap)) {
             return $this->respondError('Username dan Nama Lengkap wajib diisi.', 400);
@@ -391,6 +533,9 @@ class AuthController extends BaseApiController
             'role_label' => $roleLabel,
             'opd' => $opd,
             'kode_opd' => $kodeOpd,
+            'nip' => $nip ?: ('19850101 201001 1 ' . str_pad((string)$newId, 3, '0', STR_PAD_LEFT)),
+            'jabatan' => $jabatan ?: 'Operator Data Geospasial',
+            'telepon' => $telepon ?: '0812-3456-7890',
             'is_active' => true,
             'created_at' => date('Y-m-d H:i:s')
         ];
@@ -401,11 +546,11 @@ class AuthController extends BaseApiController
         AuditLogController::record([
             'kategori'      => 'USER',
             'aksi'          => 'CREATE_USER',
-            'aktor'         => 'Superadmin Diskominfo',
-            'role'          => 'superadmin',
+            'aktor'         => !empty($callerRole) ? "Admin ({$callerRole})" : 'Superadmin Diskominfo',
+            'role'          => !empty($callerRole) ? $callerRole : 'superadmin',
             'opd'           => $opd,
             'objek'         => "{$namaLengkap} ({$username})",
-            'keterangan'    => "Pendaftaran akun pengguna baru role {$roleLabel}",
+            'keterangan'    => "Pendaftaran akun pengguna baru role {$roleLabel} scope {$opd}",
             'versi_terkait' => '-'
         ]);
 
@@ -427,6 +572,8 @@ class AuthController extends BaseApiController
         }
 
         $userId = (int)($input['id'] ?? 0);
+        $callerRole = trim($input['caller_role'] ?? '');
+        $callerKodeOpd = strtoupper(trim($input['caller_kode_opd'] ?? ''));
 
         if ($userId === 1) {
             return $this->respondError('Akun Superadmin Utama (#1) tidak boleh dinonaktifkan.', 403);
@@ -435,6 +582,11 @@ class AuthController extends BaseApiController
         $users = self::getStorageUsers();
         foreach ($users as &$u) {
             if ($u['id'] === $userId) {
+                // Scope check untuk Admin OPD
+                if ($callerRole === 'admin_opd' && ($u['kode_opd'] ?? '') !== $callerKodeOpd) {
+                    return $this->respondError('Anda tidak berwenang mengubah status akun pengguna di luar OPD Anda.', 403);
+                }
+
                 $u['is_active'] = !$u['is_active'];
                 self::saveStorageUsers($users);
                 $statusText = $u['is_active'] ? 'diaktifkan' : 'dinonaktifkan';
@@ -442,8 +594,8 @@ class AuthController extends BaseApiController
                 AuditLogController::record([
                     'kategori'      => 'USER',
                     'aksi'          => $u['is_active'] ? 'AKTIFKAN_USER' : 'NONAKTIFKAN_USER',
-                    'aktor'         => 'Superadmin Diskominfo',
-                    'role'          => 'superadmin',
+                    'aktor'         => !empty($callerRole) ? "Admin ({$callerRole})" : 'Superadmin Diskominfo',
+                    'role'          => !empty($callerRole) ? $callerRole : 'superadmin',
                     'opd'           => $u['opd'] ?? 'Pemkab Minahasa Selatan',
                     'objek'         => "{$u['nama_lengkap']} ({$u['username']})",
                     'keterangan'    => "Status akun pengguna {$statusText}",
@@ -477,6 +629,12 @@ class AuthController extends BaseApiController
         $role = trim($input['role'] ?? '');
         $opd = trim($input['opd'] ?? '');
         $kodeOpd = strtoupper(trim($input['kode_opd'] ?? ''));
+        $nip = trim($input['nip'] ?? '');
+        $jabatan = trim($input['jabatan'] ?? '');
+        $telepon = trim($input['telepon'] ?? '');
+
+        $callerRole = trim($input['caller_role'] ?? '');
+        $callerKodeOpd = strtoupper(trim($input['caller_kode_opd'] ?? ''));
 
         if ($userId === 0) {
             return $this->respondError('ID pengguna tidak valid.', 400);
@@ -485,6 +643,19 @@ class AuthController extends BaseApiController
         $users = self::getStorageUsers();
         foreach ($users as &$u) {
             if ($u['id'] === $userId) {
+                // Scope check untuk Admin OPD
+                if ($callerRole === 'admin_opd') {
+                    if (($u['kode_opd'] ?? '') !== $callerKodeOpd) {
+                        return $this->respondError('Anda tidak memiliki wewenang mengedit akun pengguna di luar OPD Anda.', 403);
+                    }
+                    if (in_array($role, ['superadmin', 'admin_gis', 'approver_data', 'pimpinan'], true)) {
+                        return $this->respondError('Admin OPD tidak dapat menaikkan hak akses ke tingkat Superadmin/Admin GIS/Walidata.', 403);
+                    }
+                    // Kunci OPD target agar tidak berubah ke OPD lain
+                    $opd = $u['opd'];
+                    $kodeOpd = $u['kode_opd'];
+                }
+
                 if (!empty($namaLengkap)) $u['nama_lengkap'] = $namaLengkap;
                 if (!empty($email)) $u['email'] = $email;
                 if (!empty($role)) {
@@ -493,14 +664,17 @@ class AuthController extends BaseApiController
                 }
                 if (!empty($opd)) $u['opd'] = $opd;
                 if (!empty($kodeOpd)) $u['kode_opd'] = $kodeOpd;
+                if (!empty($nip)) $u['nip'] = $nip;
+                if (!empty($jabatan)) $u['jabatan'] = $jabatan;
+                if (!empty($telepon)) $u['telepon'] = $telepon;
 
                 self::saveStorageUsers($users);
 
                 AuditLogController::record([
                     'kategori'      => 'USER',
                     'aksi'          => 'UPDATE_USER',
-                    'aktor'         => 'Superadmin Diskominfo',
-                    'role'          => 'superadmin',
+                    'aktor'         => !empty($callerRole) ? "Admin ({$callerRole})" : 'Superadmin Diskominfo',
+                    'role'          => !empty($callerRole) ? $callerRole : 'superadmin',
                     'opd'           => $u['opd'] ?? 'Pemkab Minahasa Selatan',
                     'objek'         => "{$u['nama_lengkap']} ({$u['username']})",
                     'keterangan'    => "Pembaruan data profil/role pengguna",
@@ -529,6 +703,8 @@ class AuthController extends BaseApiController
         }
 
         $userId = (int)($input['id'] ?? 0);
+        $callerRole = trim($input['caller_role'] ?? '');
+        $callerKodeOpd = strtoupper(trim($input['caller_kode_opd'] ?? ''));
 
         if ($userId === 1) {
             return $this->respondError('Akun Superadmin Utama (#1) dilindungi dan tidak dapat dihapus.', 403);
@@ -548,6 +724,12 @@ class AuthController extends BaseApiController
         }
 
         $deletedUser = $users[$targetKey];
+
+        // Scope check untuk Admin OPD
+        if ($callerRole === 'admin_opd' && ($deletedUser['kode_opd'] ?? '') !== $callerKodeOpd) {
+            return $this->respondError('Anda tidak berwenang menghapus akun pengguna di luar OPD Anda.', 403);
+        }
+
         $deletedUsername = $deletedUser['username'];
         unset($users[$targetKey]);
         $users = array_values($users);
@@ -556,8 +738,8 @@ class AuthController extends BaseApiController
         AuditLogController::record([
             'kategori'      => 'USER',
             'aksi'          => 'DELETE_USER',
-            'aktor'         => 'Superadmin Diskominfo',
-            'role'          => 'superadmin',
+            'aktor'         => !empty($callerRole) ? "Admin ({$callerRole})" : 'Superadmin Diskominfo',
+            'role'          => !empty($callerRole) ? $callerRole : 'superadmin',
             'opd'           => $deletedUser['opd'] ?? 'Pemkab Minahasa Selatan',
             'objek'         => "{$deletedUser['nama_lengkap']} ({$deletedUsername})",
             'keterangan'    => "Penghapusan akun pengguna dari sistem",
