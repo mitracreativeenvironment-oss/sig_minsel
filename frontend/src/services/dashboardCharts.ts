@@ -390,15 +390,18 @@ export function useDashboardCharts({
 
   const chartDataDasarVersions = computed(() => {
     const list = dataDasarList.value.slice(0, 6);
-    const labels = list.map((v) => v.versi || 'v1.0.0');
+    const labels = list.map((v) => {
+      const typeLabel = v.tipe_data === 'KABUPATEN' ? 'Kabupaten' : (v.tipe_data === 'KECAMATAN' ? 'Kecamatan' : 'Desa');
+      return `${v.versi} (${typeLabel})`;
+    });
     const fCount = list.map((v) => v.jumlah_fitur || 17);
 
     return {
-      labels: labels.length > 0 ? labels : ['v1.0.0', 'v1.1.0', 'v1.2.0', 'v2.0.0'],
+      labels: labels.length > 0 ? labels : ['2026.1 (Kabupaten)', '2026.1 (Kecamatan)', '2026.1 (Desa)', '2026.4 (BIG 2026)'],
       datasets: [
         {
           label: 'Total Fitur Spasial Terekam',
-          data: fCount.length > 0 ? fCount : [17, 17, 17, 17],
+          data: fCount.length > 0 ? fCount : [1, 17, 177, 350],
           backgroundColor: colors.emerald,
           borderRadius: 6
         }
@@ -415,12 +418,15 @@ export function useDashboardCharts({
       else arsip++;
     });
 
+    const activeCount = aktif || 3;
+    const draftCount = arsip || 1;
+
     return {
-      labels: ['Versi Rujukan Aktif', 'Versi Arsip Histori'],
+      labels: ['Versi Rujukan Aktif', 'Versi Arsip Histori / Draft'],
       datasets: [
         {
           label: 'Versi SHP',
-          data: [aktif || 1, arsip || (dataDasarList.value.length ? dataDasarList.value.length - 1 : 2)],
+          data: [activeCount, draftCount],
           backgroundColor: [colors.emerald, colors.slate],
           borderColor: 'rgba(15, 23, 42, 0.8)',
           borderWidth: 2

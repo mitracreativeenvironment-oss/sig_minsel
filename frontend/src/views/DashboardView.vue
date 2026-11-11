@@ -2127,7 +2127,7 @@ watch(activeTab, (tab) => {
       }
     }).catch(() => {});
   }
-  if (tab === 'data_dasar' && dataDasarList.value.length === 0) {
+  if (tab === 'data_dasar') {
     sigApi.getDataDasar().then((res) => {
       if (res.data?.versions) {
         dataDasarList.value = res.data.versions;
@@ -3300,7 +3300,7 @@ onMounted(() => {
               subtitle="Evolusi perekaman poligon dan batas wilayah per rilis data dasar"
               type="bar"
               :data="chartDataDasarVersions"
-              badge="17 Kecamatan"
+              :badge="`${dataDasarList.length || 4} Versi Terdaftar`"
             />
             <StatChart
               title="Status Versi SHP Rujukan"
@@ -3425,6 +3425,11 @@ onMounted(() => {
                 </tr>
               </thead>
               <tbody>
+                <tr v-if="dataDasarList.length === 0">
+                  <td colspan="5" style="text-align: center; padding: 2rem; color: #a1a1aa;">
+                    Belum ada versi data dasar SHP yang tersimpan.
+                  </td>
+                </tr>
                 <tr v-for="v in dataDasarList" :key="v.id">
                   <td>
                     <div class="cell-main">
