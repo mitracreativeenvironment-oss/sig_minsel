@@ -2135,6 +2135,15 @@ watch(activeTab, (tab) => {
       }
     }).catch(() => {});
   }
+  if (tab === 'kategori') {
+    if (kategoriList.value.length === 0) {
+      sigApi.getKategoriAdmin().then((res) => {
+        if (res.data) {
+          kategoriList.value = res.data;
+        }
+      }).catch(() => {});
+    }
+  }
   if (tab === 'profile') {
     syncProfileForm();
     authStore.fetchProfile().then(() => syncProfileForm()).catch(() => {});
@@ -4050,8 +4059,15 @@ onMounted(() => {
             />
           </div>
 
+          <!-- Empty State when no kategori found -->
+          <div v-if="filteredKategoris.length === 0" class="empty-state-card">
+            <Database :size="40" class="empty-icon text-muted" />
+            <h3 class="empty-title">Tidak Ada Kategori yang Cocok</h3>
+            <p class="empty-desc">Tidak ditemukan tema kategori spasial yang memenuhi kriteria pencarian atau belum ada data.</p>
+          </div>
+
           <!-- BENTO GRID VIEW FOR KATEGORI -->
-          <div v-if="viewMode === 'grid'" class="bento-grid">
+          <div v-else-if="viewMode === 'grid'" class="bento-grid">
             <div
               v-for="k in paginatedKategoris"
               :key="k.id"

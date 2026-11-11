@@ -581,6 +581,36 @@ class MasterDataController extends BaseApiController
     protected static function getStorageKategori(): array
     {
         $file = WRITEPATH . 'kategori_layer.json';
+
+        // 1. Prioritaskan query real database MySQL kategori_layer jika tersedia
+        try {
+            $db = \Config\Database::connect();
+            $builder = $db->table('kategori_layer k')
+                ->select('k.*, o.nama_opd, o.kode_opd')
+                ->join('ref_opd o', 'k.opd_id = o.id', 'left')
+                ->orderBy('k.id', 'ASC');
+            $rows = $builder->get()->getResultArray();
+            if (!empty($rows)) {
+                $mapped = [];
+                foreach ($rows as $r) {
+                    $mapped[] = [
+                        'id' => (int)$r['id'],
+                        'kode' => $r['kode'],
+                        'nama_kategori' => $r['nama_kategori'],
+                        'deskripsi' => $r['deskripsi'] ?? 'Tema spasial tematik resmi Kabupaten Minahasa Selatan.',
+                        'icon' => $r['icon'] ?? 'layers',
+                        'warna_default' => $r['warna_default'] ?? '#2563eb',
+                        'opd_id' => (int)($r['opd_id'] ?? 2),
+                        'nama_opd' => $r['nama_opd'] ?? 'Pemerintah Kabupaten Minahasa Selatan',
+                        'is_active' => (bool)($r['is_active'] ?? 1),
+                        'created_at' => $r['created_at'] ?? date('Y-m-d H:i:s')
+                    ];
+                }
+                file_put_contents($file, json_encode($mapped, JSON_PRETTY_PRINT));
+                return $mapped;
+            }
+        } catch (\Throwable) {}
+
         if (file_exists($file)) {
             $data = json_decode(file_get_contents($file), true);
             if (is_array($data) && !empty($data)) {

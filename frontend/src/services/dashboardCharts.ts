@@ -592,14 +592,17 @@ export function useDashboardCharts({
     const sorted = [...kategoriList.value].sort((a, b) => (b.total_datasets || 0) - (a.total_datasets || 0)).slice(0, 8);
     const labels = sorted.map((k) => k.nama_kategori);
     const data = sorted.map((k) => k.total_datasets || 0);
-    const bgs = sorted.map((k) => k.warna_default || colors.indigo);
+    const bgs = sorted.map((_, idx) => {
+      const palette = [colors.emerald, colors.sky, colors.cyan, colors.amber, colors.slate, colors.indigo, colors.violet, colors.rose];
+      return palette[idx % palette.length];
+    });
 
     return {
-      labels: labels.length > 0 ? labels : ['Batas Wilayah', 'Infrastruktur Jalan', 'Pertanian', 'Pariwisata', 'Kesehatan', 'Pendidikan'],
+      labels: labels.length > 0 ? labels : ['Wilayah Administrasi', 'Pekerjaan Umum & Infrastruktur', 'Pemerintahan', 'Kependudukan', 'Kesehatan', 'Pariwisata & Kebudayaan'],
       datasets: [
         {
           label: 'Dataset Spasial',
-          data: data.length > 0 ? data : [14, 10, 8, 6, 5, 4],
+          data: data.length > 0 ? data : [3, 3, 2, 2, 2, 2],
           backgroundColor: bgs,
           borderRadius: 6
         }
