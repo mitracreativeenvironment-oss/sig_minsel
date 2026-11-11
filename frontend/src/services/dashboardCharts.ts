@@ -441,16 +441,45 @@ export function useDashboardCharts({
 
   // Sub-tab Kecamatan: Luas Wilayah per Kecamatan (km²)
   const chartWilayahKecLuas = computed(() => {
-    const sorted = [...kecamatanAdminList.value].sort((a, b) => b.luas_wilayah_km2 - a.luas_wilayah_km2);
+    const sorted = [...kecamatanAdminList.value].sort(
+      (a, b) => Number(b.luas_wilayah_km2 || 0) - Number(a.luas_wilayah_km2 || 0)
+    );
     const labels = sorted.map((k) => k.nama_kecamatan);
-    const data = sorted.map((k) => k.luas_wilayah_km2);
+    const data = sorted.map((k) => Number(k.luas_wilayah_km2));
 
     return {
-      labels: labels.length > 0 ? labels : ['Modoinding', 'Ranoyapo', 'Sinonsayang', 'Tenga', 'Tompaso Baru', 'Motoling'],
+      labels:
+        labels.length > 0
+          ? labels
+          : [
+              'Amurang Timur',
+              'Sinonsayang',
+              'Tompaso Baru',
+              'Tenga',
+              'Motoling Barat',
+              'Ranoyapo',
+              'Amurang Barat',
+              'Tumpaan',
+              'Tatapaan',
+              'Tareran',
+              'Motoling Timur',
+              'Modoinding',
+              'Maesaan',
+              'Kumelembuai',
+              'Suluun Tareran',
+              'Motoling',
+              'Amurang'
+            ],
       datasets: [
         {
           label: 'Luas Wilayah (km²)',
-          data: data.length > 0 ? data : [189.2, 165.4, 142.1, 128.6, 115.3, 98.7],
+          data:
+            data.length > 0
+              ? data
+              : [
+                  178.26, 133.4, 126.11, 114.77, 113.67, 93.71, 88.58, 73.16, 65.48, 58.74, 55.45, 53.61, 47.78,
+                  45.47, 32.22, 26.68, 10.66
+                ],
           backgroundColor: colors.cyan,
           borderRadius: 6
         }
@@ -461,20 +490,50 @@ export function useDashboardCharts({
   // Sub-tab Kecamatan: Jumlah Desa per Kecamatan
   const chartWilayahKecDesaCount = computed(() => {
     const desaCountMap: Record<string, number> = {};
-    desaAdminList.value.forEach((d) => {
-      desaCountMap[d.nama_kecamatan] = (desaCountMap[d.nama_kecamatan] || 0) + 1;
-    });
+    if (desaAdminList.value.length > 0) {
+      desaAdminList.value.forEach((d) => {
+        desaCountMap[d.nama_kecamatan] = (desaCountMap[d.nama_kecamatan] || 0) + 1;
+      });
+    } else if (kecamatanAdminList.value.length > 0) {
+      kecamatanAdminList.value.forEach((k) => {
+        desaCountMap[k.nama_kecamatan] = Number(k.total_desa || 0);
+      });
+    }
 
     const sorted = Object.entries(desaCountMap).sort((a, b) => b[1] - a[1]);
     const labels = sorted.map(([k]) => k);
     const data = sorted.map(([, count]) => count);
 
     return {
-      labels: labels.length > 0 ? labels : ['Amurang', 'Tumpaan', 'Modoinding', 'Tompaso Baru', 'Motoling'],
+      labels:
+        labels.length > 0
+          ? labels
+          : [
+              'Tenga',
+              'Sinonsayang',
+              'Tareran',
+              'Maesaan',
+              'Ranoyapo',
+              'Tatapaan',
+              'Amurang Barat',
+              'Amurang Timur',
+              'Modoinding',
+              'Tompaso Baru',
+              'Tumpaan',
+              'Suluun Tareran',
+              'Amurang',
+              'Kumelembuai',
+              'Motoling Barat',
+              'Motoling Timur',
+              'Motoling'
+            ],
       datasets: [
         {
           label: 'Jumlah Desa / Kelurahan Binaan',
-          data: data.length > 0 ? data : [12, 10, 10, 10, 8],
+          data:
+            data.length > 0
+              ? data
+              : [18, 13, 13, 12, 12, 11, 10, 10, 10, 10, 10, 9, 8, 8, 8, 8, 7],
           backgroundColor: colors.emerald,
           borderRadius: 6
         }
@@ -497,7 +556,7 @@ export function useDashboardCharts({
       datasets: [
         {
           label: 'Total Wilayah',
-          data: [desa || 167, kel || 10],
+          data: [desa || 166, kel || 11],
           backgroundColor: [colors.emerald, colors.sky],
           borderColor: 'rgba(15, 23, 42, 0.8)',
           borderWidth: 2
@@ -521,18 +580,25 @@ export function useDashboardCharts({
       .sort((a, b) => b[1].desa + b[1].kel - (a[1].desa + a[1].kel))
       .slice(0, 8);
 
+    const hasEntries = entries.length > 0;
+    const labels = hasEntries
+      ? entries.map(([name]) => name)
+      : ['Tenga', 'Sinonsayang', 'Tareran', 'Maesaan', 'Ranoyapo', 'Tatapaan', 'Amurang Barat', 'Amurang Timur'];
+    const desaData = hasEntries ? entries.map(([, val]) => val.desa) : [18, 13, 13, 12, 12, 11, 8, 8];
+    const kelData = hasEntries ? entries.map(([, val]) => val.kel) : [0, 0, 0, 0, 0, 0, 2, 2];
+
     return {
-      labels: entries.map(([name]) => name),
+      labels,
       datasets: [
         {
           label: 'Desa',
-          data: entries.map(([, val]) => val.desa),
+          data: desaData,
           backgroundColor: colors.emerald,
           borderRadius: 4
         },
         {
           label: 'Kelurahan',
-          data: entries.map(([, val]) => val.kel),
+          data: kelData,
           backgroundColor: colors.sky,
           borderRadius: 4
         }

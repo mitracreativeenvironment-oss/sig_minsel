@@ -1486,13 +1486,20 @@ const filteredDesas = computed(() => {
 
 // 8. Kecamatan Pagination
 const pageKecamatan = ref(1);
-const pageSizeKecamatan = ref(9);
+const pageSizeKecamatan = ref(18);
 const paginatedKecamatans = computed(() => {
   const start = (pageKecamatan.value - 1) * pageSizeKecamatan.value;
   return filteredKecamatans.value.slice(start, start + pageSizeKecamatan.value);
 });
 watch(searchKecamatanQuery, () => {
   pageKecamatan.value = 1;
+});
+
+const totalDesaOnly = computed(() => {
+  return desaAdminList.value.filter((d) => (d.tipe || '').toUpperCase() === 'DESA').length || 166;
+});
+const totalKelurahanOnly = computed(() => {
+  return desaAdminList.value.filter((d) => (d.tipe || '').toUpperCase() === 'KELURAHAN').length || 11;
 });
 
 // 9. Desa & Kelurahan Pagination
@@ -2120,6 +2127,18 @@ watch(
 );
 
 watch(activeTab, (tab) => {
+  if (tab === 'overview') {
+    if (!overviewStats.value) {
+      sigApi.getOverviewStats().then((res) => {
+        if (res.data) overviewStats.value = res.data;
+      }).catch(() => {});
+    }
+    if (!visitorStats.value) {
+      sigApi.getVisitorSummary().then((res) => {
+        if (res.data) visitorStats.value = res.data;
+      }).catch(() => {});
+    }
+  }
   if (['datasets', 'validation', 'approval', 'data_dasar'].includes(tab) && datasets.value.length === 0) {
     sigApi.getWorkflowDatasets().then((res) => {
       if (res.data?.datasets) {
@@ -2140,6 +2159,52 @@ watch(activeTab, (tab) => {
       sigApi.getKategoriAdmin().then((res) => {
         if (res.data) {
           kategoriList.value = res.data;
+        }
+      }).catch(() => {});
+    }
+  }
+  if (tab === 'wilayah') {
+    if (kecamatanAdminList.value.length === 0) {
+      loadKecamatans();
+    }
+    if (desaAdminList.value.length === 0) {
+      loadDesas();
+    }
+  }
+  if (tab === 'basemaps') {
+    if (basemapsAdminList.value.length === 0) {
+      sigApi.getAdminBasemaps().then((res) => {
+        if (res.data) {
+          basemapsAdminList.value = res.data;
+        }
+      }).catch(() => {});
+    }
+  }
+  if (tab === 'users') {
+    if (usersList.value.length === 0) {
+      sigApi.getUsers().then((res) => {
+        if (res.data) {
+          usersList.value = res.data;
+        }
+      }).catch(() => {});
+    }
+  }
+  if (tab === 'opd') {
+    if (opdList.value.length === 0) {
+      sigApi.getOpds().then((res) => {
+        if (res.data) {
+          opdList.value = res.data;
+        }
+      }).catch(() => {});
+    }
+  }
+  if (tab === 'audit') {
+    if (auditLogs.value.length === 0) {
+      sigApi.getAuditLogs().then((res) => {
+        if (res.data) {
+          auditLogs.value = res.data.logs;
+          auditKategoriList.value = res.data.kategori_list;
+          auditAksiList.value = res.data.aksi_list;
         }
       }).catch(() => {});
     }
@@ -3552,7 +3617,7 @@ onMounted(() => {
                   @click="subTabWilayah = 'kecamatan'"
                 >
                   <MapPin :size="13" />
-                  <span>Kecamatan ({{ kecamatanAdminList.length }})</span>
+                  <span>Kecamatan ({{ kecamatanAdminList.length || 17 }})</span>
                 </button>
                 <button
                   type="button"
@@ -3561,7 +3626,7 @@ onMounted(() => {
                   @click="subTabWilayah = 'desa'"
                 >
                   <Building2 :size="13" />
-                  <span>Desa &amp; Kelurahan ({{ desaAdminList.length }})</span>
+                  <span>Desa &amp; Kelurahan ({{ desaAdminList.length || 177 }})</span>
                 </button>
               </div>
 
@@ -3613,8 +3678,8 @@ onMounted(() => {
 
                 <select v-model="filterDesaTipe" class="filter-select-enhanced">
                   <option value="">Semua Tipe</option>
-                  <option value="DESA">Desa (167)</option>
-                  <option value="KELURAHAN">Kelurahan (10)</option>
+                  <option value="DESA">Desa ({{ totalDesaOnly }})</option>
+                  <option value="KELURAHAN">Kelurahan ({{ totalKelurahanOnly }})</option>
                 </select>
               </template>
             </div>
