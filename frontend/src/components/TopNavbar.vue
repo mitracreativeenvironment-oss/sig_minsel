@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { useWilayahStore } from '../stores/wilayahStore';
 import { useAuthStore } from '../stores/authStore';
-import { ShieldCheck, Compass, LayoutDashboard } from 'lucide-vue-next';
+import { ShieldCheck, Compass, LayoutDashboard, BarChart3 } from 'lucide-vue-next';
 
 const emit = defineEmits<{
   (e: 'navigate', view: 'geoportal' | 'dashboard'): void;
   (e: 'open-login'): void;
+  (e: 'open-stats'): void;
 }>();
 
 const wilayahStore = useWilayahStore();
@@ -35,6 +36,10 @@ const authStore = useAuthStore();
       <button class="nav-tab-btn active" @click="emit('navigate', 'geoportal')">
         <Compass :size="15" />
         <span>Peta Interaktif</span>
+      </button>
+      <button class="nav-tab-btn" @click="emit('open-stats')" title="Buka Ringkasan Statistik Spasial Wilayah">
+        <BarChart3 :size="15" />
+        <span>Statistik Wilayah</span>
       </button>
       <button
         v-if="authStore.isAuthenticated"

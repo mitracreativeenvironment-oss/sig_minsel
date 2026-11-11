@@ -7,6 +7,7 @@ import LayerControlPanel from './components/LayerControlPanel.vue';
 import UserLocationBar from './components/UserLocationBar.vue';
 import DashboardView from './views/DashboardView.vue';
 import AuthModal from './components/AuthModal.vue';
+import SpatialStatsModal from './components/SpatialStatsModal.vue';
 import { useWilayahStore } from './stores/wilayahStore';
 import { useLayerStore } from './stores/layerStore';
 import { useAuthStore } from './stores/authStore';
@@ -15,6 +16,7 @@ import { sigApi } from './services/api';
 type ActiveView = 'geoportal' | 'dashboard';
 const currentView = ref<ActiveView>('geoportal');
 const showAuthModal = ref(false);
+const showStatsModal = ref(false);
 
 const wilayahStore = useWilayahStore();
 const layerStore = useLayerStore();
@@ -50,6 +52,7 @@ onMounted(async () => {
       <TopNavbar
         @navigate="handleNavigate"
         @open-login="showAuthModal = true"
+        @open-stats="showStatsModal = true"
       />
 
       <main class="gis-body">
@@ -73,6 +76,12 @@ onMounted(async () => {
     <DashboardView
       v-else-if="currentView === 'dashboard'"
       @navigate="handleNavigate"
+    />
+
+    <!-- MODAL RINGKASAN STATISTIK GEOPORTAL -->
+    <SpatialStatsModal
+      v-if="showStatsModal"
+      @close="showStatsModal = false"
     />
 
     <!-- MODAL AUTENTIKASI 8 ROLE -->

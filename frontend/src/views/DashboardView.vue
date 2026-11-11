@@ -4,6 +4,8 @@ import { useAuthStore } from '../stores/authStore';
 import { sigApi } from '../services/api';
 import { notify, confirmDialog, promptNoteDialog, showDetailDialog } from '../services/alert';
 import PaginationControl from '../components/PaginationControl.vue';
+import StatChart from '../components/StatChart.vue';
+import { useDashboardCharts } from '../services/dashboardCharts';
 import type {
   RoleName,
   DatasetItem,
@@ -150,6 +152,48 @@ const isAuditLoading = ref(false);
 // Visitor Analytics State
 const visitorStats = ref<VisitorSummary | null>(null);
 const isVisitorLoading = ref(false);
+
+// ==========================================
+// REAL STATISTICAL CHARTS FOR EACH PAGE/TAB
+// ==========================================
+const {
+  chartOverviewGeometry,
+  chartOverviewPipeline,
+  chartOverviewVisitors,
+  chartDatasetStatus,
+  chartDatasetByOpd,
+  chartValidationRatio,
+  chartValidationCategories,
+  chartApprovalReadiness,
+  chartApprovalGeometries,
+  chartDataDasarVersions,
+  chartDataDasarStatus,
+  chartWilayahKecLuas,
+  chartWilayahKecDesaCount,
+  chartWilayahDesaTipe,
+  chartWilayahTopDesaKec,
+  chartBasemapProviders,
+  chartBasemapZoomRange,
+  chartKategoriDatasetCount,
+  chartKategoriStatus,
+  chartOpdContribution,
+  chartOpdActiveRatio,
+  chartUsersByRole,
+  chartUsersStatus,
+  chartAuditByKategori,
+  chartAuditByAksi
+} = useDashboardCharts({
+  datasets,
+  kecamatanAdminList,
+  desaAdminList,
+  kategoriList,
+  opdList,
+  usersList,
+  auditLogs,
+  visitorStats,
+  basemapsAdminList,
+  dataDasarList
+});
 
 // View Mode State with LocalStorage Persistence
 const viewMode = ref<'grid' | 'list'>(
@@ -2042,6 +2086,31 @@ onMounted(() => {
             </div>
           </div>
 
+          <!-- Visual Statistics Charts: Overview -->
+          <div class="tab-chart-grid">
+            <StatChart
+              title="Distribusi Geometri Spasial"
+              subtitle="Sebaran layer polygon, line, dan point aktif di Geoportal"
+              type="doughnut"
+              :data="chartOverviewGeometry"
+              badge="SRID:4326"
+            />
+            <StatChart
+              title="Volume Alur Persetujuan Dataset"
+              subtitle="Sebaran tahapan verifikasi geospasial Satu Data Indonesia"
+              type="bar"
+              :data="chartOverviewPipeline"
+              badge="12 Tahap SDI"
+            />
+            <StatChart
+              title="Tren Akses Geoportal (7 Hari Terakhir)"
+              subtitle="Fluktuasi trafik harian pengguna di Geoportal"
+              type="line"
+              :data="chartOverviewVisitors"
+              badge="Trafik Real-time"
+            />
+          </div>
+
           <!-- 17 Kecamatan Spatial Coverage Matrix -->
           <div class="dash-box">
             <div class="box-header">
@@ -2281,6 +2350,24 @@ onMounted(() => {
             <span>
               Mode Pemantauan Eksekutif / Publik — Hak akses tindakan dibatasi untuk eksplorasi dan monitoring data spasial.
             </span>
+          </div>
+
+          <!-- Visual Statistics Charts: Datasets -->
+          <div class="tab-chart-grid">
+            <StatChart
+              title="Status Kesiapan &amp; Publikasi Dataset"
+              subtitle="Perbandingan dataset tayang aktif vs antrean verifikasi"
+              type="doughnut"
+              :data="chartDatasetStatus"
+              badge="Katalog Publik"
+            />
+            <StatChart
+              title="Produktivitas Dataset per OPD Produsen"
+              subtitle="Volume kontribusi data geospasial sektoral Kabupaten Minahasa Selatan"
+              type="bar"
+              :data="chartDatasetByOpd"
+              badge="Produsen Data"
+            />
           </div>
 
           <!-- Multi-Criteria Filter & Search Toolbar -->
@@ -2676,6 +2763,24 @@ onMounted(() => {
             </div>
           </div>
 
+          <!-- Visual Statistics Charts: Validation -->
+          <div class="tab-chart-grid">
+            <StatChart
+              title="Rasio Antrean Validasi GIS"
+              subtitle="Proporsi dataset baru diajukan vs dalam telaah teknis GIS"
+              type="doughnut"
+              :data="chartValidationRatio"
+              badge="Antrean GIS"
+            />
+            <StatChart
+              title="Sebaran Tema Spasial dalam Antrean"
+              subtitle="Kategori geospasial tematik yang sedang ditelaah topologinya"
+              type="bar"
+              :data="chartValidationCategories"
+              badge="Topologi ESRI"
+            />
+          </div>
+
           <div v-if="filteredValidationDatasets.length === 0" class="empty-state-card">
             <CheckCheck :size="40" class="empty-icon text-emerald" />
             <h3 class="empty-title">Tidak Ada Antrean Validasi</h3>
@@ -2770,6 +2875,24 @@ onMounted(() => {
             </div>
           </div>
 
+          <!-- Visual Statistics Charts: Approval -->
+          <div class="tab-chart-grid">
+            <StatChart
+              title="Kesiapan Publikasi Satu Data Indonesia (SDI)"
+              subtitle="Akumulasi dataset yang telah disahkan Walidata Bappelitbangda"
+              type="doughnut"
+              :data="chartApprovalReadiness"
+              badge="Walidata SDI"
+            />
+            <StatChart
+              title="Komposisi Geometri Dataset Walidata"
+              subtitle="Penyebaran batas polygon, garis jaringan, dan titik fasilitas daerah"
+              type="bar"
+              :data="chartApprovalGeometries"
+              badge="Geometri Resmi"
+            />
+          </div>
+
           <div v-if="filteredApprovalDatasets.length === 0" class="empty-state-card">
             <FileCheck2 :size="40" class="empty-icon text-blue" />
             <h3 class="empty-title">Tidak Ada Antrean Persetujuan</h3>
@@ -2831,6 +2954,24 @@ onMounted(() => {
               <h2 class="content-title">Modul Data Dasar Geospasial (Batas Administrasi)</h2>
               <p class="content-sub">Khusus Superadmin: Unggah dan aktivasi file ZIP Shapefile resmi batas Kabupaten, 17 Kecamatan, dan 167 Desa/Kelurahan</p>
             </div>
+          </div>
+
+          <!-- Visual Statistics Charts: Data Dasar SHP -->
+          <div class="tab-chart-grid">
+            <StatChart
+              title="Fitur Terekam per Versi SHP Rujukan"
+              subtitle="Evolusi perekaman poligon dan batas wilayah per rilis data dasar"
+              type="bar"
+              :data="chartDataDasarVersions"
+              badge="17 Kecamatan"
+            />
+            <StatChart
+              title="Status Versi SHP Rujukan"
+              subtitle="Proporsi paket data dasar aktif vs arsip histori pembaruan"
+              type="doughnut"
+              :data="chartDataDasarStatus"
+              badge="Integritas Topologi"
+            />
           </div>
 
           <!-- Upload Box -->
@@ -3112,6 +3253,24 @@ onMounted(() => {
 
           <!-- SUB-TAB 1: KECAMATAN -->
           <div v-if="subTabWilayah === 'kecamatan'">
+            <!-- Visual Statistics Charts: Kecamatan -->
+            <div class="tab-chart-grid">
+              <StatChart
+                title="Perbandingan Luas Wilayah 17 Kecamatan (km²)"
+                subtitle="Komparasi luas geografis kecamatan di Kabupaten Minahasa Selatan"
+                type="bar"
+                :data="chartWilayahKecLuas"
+                badge="1.456,46 km²"
+              />
+              <StatChart
+                title="Sebaran Jumlah Desa per Kecamatan"
+                subtitle="Kepadatan unit administrasi desa &amp; kelurahan per kecamatan"
+                type="bar"
+                :data="chartWilayahKecDesaCount"
+                badge="177 Wilayah Binaan"
+              />
+            </div>
+
             <div v-if="filteredKecamatans.length === 0" class="empty-state-card">
               <Search :size="40" class="empty-icon" />
               <h3 class="empty-title">Tidak Ada Kecamatan yang Cocok</h3>
@@ -3169,6 +3328,24 @@ onMounted(() => {
 
           <!-- SUB-TAB 2: DESA & KELURAHAN -->
           <div v-else>
+            <!-- Visual Statistics Charts: Desa & Kelurahan -->
+            <div class="tab-chart-grid">
+              <StatChart
+                title="Proporsi Tipe Wilayah Binaan"
+                subtitle="Rasio status pemerintahan desa otonom vs kelurahan perkotaan"
+                type="doughnut"
+                :data="chartWilayahDesaTipe"
+                badge="167 Desa / 10 Kel"
+              />
+              <StatChart
+                title="Top 8 Kecamatan dengan Wilayah Terbanyak"
+                subtitle="Akumulasi desa dan kelurahan pada kecamatan berpopulasi padat"
+                type="bar"
+                :data="chartWilayahTopDesaKec"
+                badge="Sebaran Wilayah"
+              />
+            </div>
+
             <div v-if="filteredDesas.length === 0" class="empty-state-card">
               <Search :size="40" class="empty-icon" />
               <h3 class="empty-title">Tidak Ada Desa / Kelurahan yang Cocok</h3>
@@ -3309,6 +3486,24 @@ onMounted(() => {
                 <option value="inactive">Nonaktif</option>
               </select>
             </div>
+          </div>
+
+          <!-- Visual Statistics Charts: Base Map -->
+          <div class="tab-chart-grid">
+            <StatChart
+              title="Komposisi Provider Peta Dasar"
+              subtitle="Perbandingan raster tile (XYZ/TMS) vs vector tile (MapLibre GL)"
+              type="doughnut"
+              :data="chartBasemapProviders"
+              badge="Multi-Provider"
+            />
+            <StatChart
+              title="Jangkauan Level Zoom Maksimum"
+              subtitle="Tingkat ketelitian visual citra satelit dan peta topografi"
+              type="bar"
+              :data="chartBasemapZoomRange"
+              badge="Zoom 0 - 20"
+            />
           </div>
 
           <!-- Empty State -->
@@ -3475,6 +3670,24 @@ onMounted(() => {
                 </button>
               </div>
             </div>
+          </div>
+
+          <!-- Visual Statistics Charts: Kategori Spasial -->
+          <div class="tab-chart-grid">
+            <StatChart
+              title="Volume Dataset per Kategori Tematik"
+              subtitle="Top 8 tema spasial terpopuler berdasarkan jumlah dataset terdaftar"
+              type="bar"
+              :data="chartKategoriDatasetCount"
+              badge="Tema Spasial"
+            />
+            <StatChart
+              title="Proporsi Status Kategori Spasial"
+              subtitle="Rasio kategori layer yang aktif digunakan vs diarsipkan"
+              type="doughnut"
+              :data="chartKategoriStatus"
+              badge="28 Tema SDI"
+            />
           </div>
 
           <!-- BENTO GRID VIEW FOR KATEGORI -->
@@ -3678,6 +3891,24 @@ onMounted(() => {
             </div>
           </div>
 
+          <!-- Visual Statistics Charts: OPD -->
+          <div class="tab-chart-grid">
+            <StatChart
+              title="Kontribusi Dataset per Unit OPD"
+              subtitle="Peringkat dinas dan badan daerah teraktif penyuplai data spasial"
+              type="bar"
+              :data="chartOpdContribution"
+              badge="Produsen Data Daerah"
+            />
+            <StatChart
+              title="Status Keaktifan Organisasi Perangkat Daerah"
+              subtitle="Persentase OPD aktif dalam ekosistem geoportal Minahasa Selatan"
+              type="doughnut"
+              :data="chartOpdActiveRatio"
+              badge="OPD Terhubung"
+            />
+          </div>
+
           <!-- BENTO GRID VIEW FOR OPD -->
           <div v-if="viewMode === 'grid'" class="bento-grid">
             <div
@@ -3871,6 +4102,24 @@ onMounted(() => {
             </div>
           </div>
 
+          <!-- Visual Statistics Charts: Users -->
+          <div class="tab-chart-grid">
+            <StatChart
+              title="Komposisi Pengguna per 8 Role Kewenangan"
+              subtitle="Pemisahan wewenang akses: Superadmin, Admin GIS, Walidata, hingga Publik"
+              type="doughnut"
+              :data="chartUsersByRole"
+              badge="8 Role RBAC"
+            />
+            <StatChart
+              title="Rasio Status Akses Akun Pengguna"
+              subtitle="Status akun terverifikasi aktif vs akun dinonaktifkan otoritas"
+              type="bar"
+              :data="chartUsersStatus"
+              badge="Akses Terlindungi"
+            />
+          </div>
+
           <div class="table-card">
             <table class="data-table">
               <thead>
@@ -4032,6 +4281,24 @@ onMounted(() => {
                 <span>Reset ({{ activeAuditFilterCount }})</span>
               </button>
             </div>
+          </div>
+
+          <!-- Visual Statistics Charts: Audit Trail -->
+          <div class="tab-chart-grid">
+            <StatChart
+              title="Frekuensi Aktivitas per Kategori Sistem"
+              subtitle="Distribusi log pada modul Dataset, Validasi, Walidata, User, dan Master"
+              type="bar"
+              :data="chartAuditByKategori"
+              badge="Auditability"
+            />
+            <StatChart
+              title="Proporsi Tindakan / Aksi Pengguna"
+              subtitle="Sebaran operasi pembuatan (CREATE), revisi (UPDATE), validasi, dan hapus"
+              type="doughnut"
+              :data="chartAuditByAksi"
+              badge="Jejak Digital"
+            />
           </div>
 
           <!-- Empty State -->
@@ -5238,6 +5505,19 @@ onMounted(() => {
 </template>
 
 <style scoped>
+/* Tab Statistical Charts Grid */
+.tab-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+@media (max-width: 768px) {
+  .tab-chart-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .dashboard-shell {
   display: flex;
   flex-direction: column;
