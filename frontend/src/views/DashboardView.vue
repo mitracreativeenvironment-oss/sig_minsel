@@ -38,7 +38,6 @@ import {
   AlertTriangle,
   FileArchive,
   Layers,
-  ArrowRight,
   ShieldAlert,
   Send,
   Search,
@@ -2429,39 +2428,6 @@ onMounted(() => {
               :data="chartOverviewVisitors"
               badge="Trafik Real-time"
             />
-          </div>
-
-          <!-- Dataset Pipeline Status Strip -->
-          <div class="dash-box">
-            <div class="box-header">
-              <h3 class="box-title">Status Alur Persetujuan Dataset Terpusat</h3>
-            </div>
-            <div class="status-summary-bar">
-              <div class="ss-item">
-                <span class="ss-num">{{ datasets.filter(d => d.status === 'DRAFT').length }}</span>
-                <span class="ss-label">Draft Operator</span>
-              </div>
-              <div class="ss-arrow"><ArrowRight :size="14" /></div>
-              <div class="ss-item">
-                <span class="ss-num">{{ datasets.filter(d => ['SUBMITTED', 'IN_REVIEW_OPD', 'APPROVED_OPD'].includes(d.status)).length }}</span>
-                <span class="ss-label">Review OPD</span>
-              </div>
-              <div class="ss-arrow"><ArrowRight :size="14" /></div>
-              <div class="ss-item">
-                <span class="ss-num">{{ datasets.filter(d => ['SUBMITTED_GIS', 'IN_VALIDATION_GIS', 'APPROVED_GIS'].includes(d.status)).length }}</span>
-                <span class="ss-label">Validasi Teknis</span>
-              </div>
-              <div class="ss-arrow"><ArrowRight :size="14" /></div>
-              <div class="ss-item">
-                <span class="ss-num">{{ datasets.filter(d => ['SUBMITTED_APPROVAL', 'IN_APPROVAL', 'APPROVED'].includes(d.status)).length }}</span>
-                <span class="ss-label">Persetujuan Pusat</span>
-              </div>
-              <div class="ss-arrow"><ArrowRight :size="14" /></div>
-              <div class="ss-item ss-published">
-                <span class="ss-num">{{ datasets.filter(d => d.status === 'PUBLISHED').length }}</span>
-                <span class="ss-label">Tayang Geoportal</span>
-              </div>
-            </div>
           </div>
 
           <!-- ============================================================== -->
@@ -6599,43 +6565,6 @@ onMounted(() => {
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-}
-
-/* STATUS SUMMARY BAR */
-.status-summary-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: rgba(255, 255, 255, 0.03);
-  padding: 16px 20px;
-  border-radius: 10px;
-}
-
-.ss-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.ss-num {
-  font-size: 20px;
-  font-weight: 800;
-  color: #ffffff;
-  font-family: 'JetBrains Mono', monospace;
-}
-
-.ss-label {
-  font-size: 11px;
-  color: #94a3b8;
-}
-
-.ss-published .ss-num {
-  color: #10b981;
-}
-
-.ss-arrow {
-  color: #475569;
 }
 
 /* TABLE STYLING */
