@@ -2378,25 +2378,6 @@ onMounted(() => {
             />
           </div>
 
-          <!-- 17 Kecamatan Spatial Coverage Matrix -->
-          <div class="dash-box">
-            <div class="box-header">
-              <h3 class="box-title">Matriks Distribusi Spasial 17 Kecamatan</h3>
-              <button class="btn-link" @click="emit('navigate', 'geoportal')">Lihat Peta Lengkap</button>
-            </div>
-            <div class="kec-matrix">
-              <div
-                v-for="kec in ['Amurang', 'Amurang Barat', 'Amurang Timur', 'Tumpaan', 'Tareran', 'Suluun Tareran', 'Modoinding', 'Tompaso Baru', 'Maesaan', 'Ranoyapo', 'Motoling', 'Motoling Barat', 'Motoling Timur', 'Kumelembuai', 'Sinonsayang', 'Tenga', 'Tatapaan']"
-                :key="kec"
-                class="kec-pill"
-              >
-                <MapPin :size="14" class="icon-pin" />
-                <span class="kp-name">{{ kec }}</span>
-                <span class="kp-status">Tervalidasi</span>
-              </div>
-            </div>
-          </div>
-
           <!-- Dataset Pipeline Status Strip -->
           <div class="dash-box">
             <div class="box-header">
@@ -6565,39 +6546,6 @@ onMounted(() => {
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-}
-
-/* KECAMATAN MATRIX */
-.kec-matrix {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 10px;
-}
-
-.kec-pill {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  padding: 8px 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.icon-pin {
-  color: #38bdf8;
-}
-
-.kp-name {
-  font-size: 12px;
-  font-weight: 600;
-  color: #f8fafc;
-  flex: 1;
-}
-
-.kp-status {
-  font-size: 10px;
-  color: #10b981;
 }
 
 /* STATUS SUMMARY BAR */
