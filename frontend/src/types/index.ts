@@ -318,14 +318,19 @@ export interface VisitorSummary {
     tablet: number;
   };
   tren_mingguan: Array<{
-    tanggal: string;
+    hari?: string;
+    tanggal?: string;
     hits: number;
   }>;
   halaman_populer: Array<{
-    page: string;
-    hits: number;
+    page?: string;
+    nama?: string;
+    hits?: number;
+    kunjungan?: number;
+    persen?: number;
   }>;
-  terakhir_diperbarui: string;
+  last_updated?: string;
+  terakhir_diperbarui?: string;
 }
 
 // ==========================================
