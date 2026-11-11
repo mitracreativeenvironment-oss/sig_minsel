@@ -23,7 +23,12 @@ import type {
   OverviewStats
 } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/spasials';
+const rawBase = import.meta.env.VITE_API_BASE_URL;
+// Gunakan relative path '/spasials' agar selalu melalui Vite proxy (same-origin, bebas CORS)
+// saat diakses melalui localhost, 127.0.0.1, atau IP lokal di lingkungan browser.
+const API_BASE_URL = (!rawBase || rawBase.includes('localhost:8080') || rawBase.includes('127.0.0.1:8080'))
+  ? '/spasials'
+  : rawBase;
 const API_TOKEN = import.meta.env.VITE_API_TOKEN || 'sig_minsel_sec_2026_m1n53l_k4b';
 
 /**
@@ -45,18 +50,35 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     headers,
   };
 
-  const response = await fetch(url, config);
+  try {
+    const response = await fetch(url, config);
 
-  if (!response.ok) {
-    let errorMessage = `HTTP Error ${response.status}: ${response.statusText}`;
-    try {
-      const errJson = await response.json();
-      if (errJson.message) errorMessage = errJson.message;
-    } catch {}
-    throw new Error(errorMessage);
+    if (!response.ok) {
+      let errorMessage = `HTTP Error ${response.status}: ${response.statusText}`;
+      try {
+        const errJson = await response.json();
+        if (errJson.message) errorMessage = errJson.message;
+      } catch {}
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  } catch (err: any) {
+    if (err.name === 'TypeError' && err.message === 'Failed to fetch') {
+      // Coba fallback langsung ke port 8080 jika proxy Vite belum siap
+      if (API_BASE_URL === '/spasials' && typeof window !== 'undefined') {
+        try {
+          const directUrl = `http://${window.location.hostname}:8080/spasials${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+          const directRes = await fetch(directUrl, config);
+          if (directRes.ok) {
+            return directRes.json();
+          }
+        } catch {}
+      }
+      throw new Error('Gagal menghubungi backend API (koneksi ditolak). Pastikan server backend aktif di port 8080.');
+    }
+    throw err;
   }
-
-  return response.json();
 }
 
 export const sigApi = {

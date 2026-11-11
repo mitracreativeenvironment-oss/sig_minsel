@@ -1962,9 +1962,15 @@ async function handleRejectWithPrompt(
 
 // SweetAlert2 Interactive Upload SHP
 async function handleUploadShpWithConfirm() {
+  const targetName = uploadFileName.value || dataDasarFile.value?.name || 'ADM_MINSEL.zip';
+  if (!targetName && !dataDasarFile.value) {
+    notify.error('Berkas Belum Dipilih', 'Silakan pilih berkas ZIP Shapefile terlebih dahulu atau pilih berkas ZIP yang tersedia di server.');
+    return;
+  }
+
   const confirmed = await confirmDialog({
     title: 'Validasi & Unggah Paket SHP?',
-    text: `Paket data dasar "${uploadFileName.value}" (${uploadTipe.value} - ${uploadTahun.value}) akan diverifikasi topologinya dan disimpan ke sistem.`,
+    text: `Paket data dasar "${targetName}" (${uploadTipe.value} - Tahun ${uploadTahun.value}) akan diverifikasi topologinya dan disimpan ke sistem.`,
     confirmButtonText: 'Upload & Validasi',
     icon: 'info'
   });
@@ -1986,11 +1992,16 @@ async function handleUploadShpWithConfirm() {
         tipe_data: uploadTipe.value,
         sumber_resmi: uploadSumber.value,
         tahun_referensi: uploadTahun.value,
-        nama_file: uploadFileName.value
+        nama_file: targetName
       });
     }
     lastValidationReport.value = res.data.validation_report;
-    dataDasarList.value.push(res.data.version_record);
+    try {
+      const refreshed = await sigApi.getDataDasar();
+      dataDasarList.value = refreshed.data.versions;
+    } catch {
+      dataDasarList.value.push(res.data.version_record);
+    }
     notify.success('Upload SHP Berhasil', res.message || 'Paket SHP tervalidasi EPSG:4326.');
   } catch (e: any) {
     notify.error('Gagal Upload SHP', e.message || 'Verifikasi paket SHP gagal');
@@ -2109,10 +2120,18 @@ watch(
 );
 
 watch(activeTab, (tab) => {
-  if (tab === 'datasets' && datasets.value.length === 0) {
+  if (['datasets', 'validation', 'approval', 'data_dasar'].includes(tab) && datasets.value.length === 0) {
     sigApi.getWorkflowDatasets().then((res) => {
       if (res.data?.datasets) {
         datasets.value = res.data.datasets;
+      }
+    }).catch(() => {});
+  }
+  if (tab === 'data_dasar' && dataDasarList.value.length === 0) {
+    sigApi.getDataDasar().then((res) => {
+      if (res.data?.versions) {
+        dataDasarList.value = res.data.versions;
+        serverZipFiles.value = (res.data as any).server_zip_files || [];
       }
     }).catch(() => {});
   }
