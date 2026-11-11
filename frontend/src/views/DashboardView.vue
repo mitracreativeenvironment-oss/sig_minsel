@@ -2109,6 +2109,13 @@ watch(
 );
 
 watch(activeTab, (tab) => {
+  if (tab === 'datasets' && datasets.value.length === 0) {
+    sigApi.getWorkflowDatasets().then((res) => {
+      if (res.data?.datasets) {
+        datasets.value = res.data.datasets;
+      }
+    }).catch(() => {});
+  }
   if (tab === 'profile') {
     syncProfileForm();
     authStore.fetchProfile().then(() => syncProfileForm()).catch(() => {});
